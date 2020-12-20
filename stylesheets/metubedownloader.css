@@ -1,0 +1,43 @@
+/* TODO: put your application-specific CSS here */
+
+.thumbnail {
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-left: 5%;
+}
+
+.checkmark {
+    margin-top: 35px;
+}
+
+.checkmark.true {
+    visibility: visible;
+}
+
+.checkmark.false {
+    visibility: hidden;
+}
+
+.video-title {
+    padding-top: 20px;
+    margin-left: 198px;
+    overflow-wrap: break-word;
+}
+
+.search-box {
+    padding-left: 14px;
+    padding-right: 14px;
+    height: 31px;
+    background-color: darkgray;
+    border: 1px solid darkgray;
+    border-radius: 15px 0px 0px 15px;
+}
+
+.clear-button {
+    width: 48px;
+    margin-left: -20px;
+    background-color: darkgray;
+    border: 1px soild dimgray;
+    border-radius: 0px 15px 15px 0px;
+}
