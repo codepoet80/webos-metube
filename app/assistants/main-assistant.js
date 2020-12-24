@@ -354,7 +354,7 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
     this.controller.modelChanged(this.spinnerModel);
 
     //Ask webOS to launch the video player with the new url
-    this.wakeupRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
+    this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
         method: "open",
         parameters: {
             "id": "com.palm.app.videoplayer",
