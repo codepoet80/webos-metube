@@ -1,10 +1,10 @@
 {
     "id": "com.jonandnic.metube",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "vendor": "Jon Wise",
     "type": "web",
     "main": "index.html",
-    "title": "MeTube (Beta)",
+    "title": "MeTube",
     "icon": "icon.png",
     "uiRevision": "2"
 }

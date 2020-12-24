@@ -16,9 +16,10 @@ function MainAssistant() {
 MainAssistant.prototype.setup = function() {
 
     this.ServiceURL = "http://metube.webosarchive.com:8081/add";
-    this.PlaybackURLBase = "http://metube.webosarchive.com/youtube-dl";
+    this.PlaybackURLBase = "http://metube.webosarchive.com/play";
+    this.SearchURLBase = "http://metube.webosarchive.com/search";
+    this.ListURLBase = "http://metube.webosarchive.com/list";
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
-    this.APIKey = atob(_apiKey); //TODO: Make this changeable
     /* This value will be multiplied by 2000 to determine total number of milliseconds the client will wait for the server to finish preparing a video.
        Changing this value allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
     this.TimeOutMax = 15; //TODO: If this becomes a user preferences, it should need exceed (or even approach) the ServerCleanupTime
@@ -70,7 +71,19 @@ MainAssistant.prototype.setup = function() {
         ]
     };
     this.controller.setupWidget(Mojo.Menu.appMenu, this.appMenuAttributes, this.appMenuModel);
+
+    //Check for updates
+    updaterModel.CheckForUpdate("MeTube", this.handleUpdateResponse.bind(this));
 };
+
+MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
+    if (responseObj && responseObj.updateFound) {
+        updaterModel.PromptUserForUpdate(function(response) {
+            if (response)
+                updaterModel.InstallUpdate();
+        }.bind(this));
+    }
+}
 
 MainAssistant.prototype.activate = function(event) {
     /* put in event handlers here that should only be in effect when this scene is active. For
@@ -212,13 +225,13 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 
 //Gets a list of files the server has now
 MainAssistant.prototype.getFileList = function(callback) {
-    Mojo.Log.info("Getting file list: " + this.PlaybackURLBase);
+    Mojo.Log.info("Getting file list: " + this.ListURLBase);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", this.PlaybackURLBase);
+    xmlhttp.open("GET", this.ListURLBase);
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -260,14 +273,6 @@ MainAssistant.prototype.checkForNewFiles = function() {
                 this.timeOutCount++;
             } else {
                 Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
-                //TODO: Maybe our history can help here?
-                /*
-                for (var i = 0; i < this.VideoRequests.length; i++) {
-                    var histRequest = this.VideoRequests[i];
-                    var currRequestTime = new Date().getTime();
-                    //TODO: Maybe our history can help here?
-                }
-                */
                 Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
                 clearInterval(this.FileCheckInt);
             }
@@ -374,7 +379,7 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
     return true;
 }
 
-//Send a search request to Google's API
+//Send a search request to MeTube to send to Google for us (never worry about HTTPS encryption again)
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
     Mojo.Log.info("Search requested: " + videoRequest)
     this.SearchValue = videoRequest;
@@ -399,14 +404,15 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
     }.bind(this));
 }
 
-//Get the results from Google's API
+//Get the results from Search Request
 MainAssistant.prototype.getSearchResults = function(searchString, callback) {
     Mojo.Log.info("Getting search results: " + this.PlaybackURLBase);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
-    var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
+    //var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
+    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
 
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);
@@ -420,7 +426,7 @@ MainAssistant.prototype.getSearchResults = function(searchString, callback) {
     }.bind(this);
 }
 
-//Update the UI with search results from Google's API
+//Update the UI with search results from Search Request
 MainAssistant.prototype.updateSearchResultsList = function(results) {
 
     var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
