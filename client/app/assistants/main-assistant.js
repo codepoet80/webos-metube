@@ -15,10 +15,10 @@ function MainAssistant() {
 
 MainAssistant.prototype.setup = function() {
 
-    this.ServiceURL = "http://metube.webosarchive.com:8081/add";
-    this.PlaybackURLBase = "http://metube.webosarchive.com/play";
-    this.SearchURLBase = "http://metube.webosarchive.com/search";
-    this.ListURLBase = "http://metube.webosarchive.com/list";
+    this.SearchURLBase = "http://metube.webosarchive.com/search.php";
+    this.AddURLBase = "http://metube.webosarchive.com/add.php";
+    this.ListURLBase = "http://metube.webosarchive.com/list.php";
+    this.PlaybackURLBase = "http://metube.webosarchive.com/play.php";
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
     /* This value will be multiplied by 2000 to determine total number of milliseconds the client will wait for the server to finish preparing a video.
        Changing this value allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
@@ -155,7 +155,7 @@ MainAssistant.prototype.handleClearTap = function() {
 
 //Handle list item taps
 MainAssistant.prototype.handleListClick = function(event) {
-    Mojo.Log.info("item tapped: " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
+    Mojo.Log.info("Item tapped: " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     if (event.item.selectedState) {
         event.item.selectedState = false;
@@ -192,8 +192,8 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     }
     if (!historyPath) {
         //Ask server for existing file list so we can determine when a new file is ready
-        this.getFileList(function(response) {
-            Mojo.Log.info("Server file list now: " + response);
+        this.DoMeTubeListRequest(function(response) {
+            //Mojo.Log.info("Server file list now: " + response);
             /* Note: This house-of-cards depends on each request from all users creating a new file on the server
                 which this client will find by comparing the file list before its request, to the file list after
                 their request. An aggressive clean-up time on the server decreases the odds that two users will
@@ -210,10 +210,10 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
                 this.VideoRequests.push({ "videoRequest": videoRequest, "requestTime": requestTime });
 
                 //Ask server for a new file
-                this.requestFile(videoRequest);
+                this.addFile(videoRequest);
             } else {
-                Mojo.Log.error("No usable response from server: " + response);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response. Check network connectivity.");
+                Mojo.Log.error("No usable response from server while sending list request: " + response);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity.");
             }
         }.bind(this));
     } else {
@@ -223,63 +223,54 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     }
 }
 
-//Gets a list of files the server has now
-MainAssistant.prototype.getFileList = function(callback) {
-    Mojo.Log.info("Getting file list: " + this.ListURLBase);
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", this.ListURLBase);
-    xmlhttp.send();
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            //Mojo.Log.info("File server responded: " + xmlhttp.responseText);
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
-}
-
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
     Mojo.Log.info("Checking for new files...");
-    this.getFileList(function(response) {
+    this.DoMeTubeListRequest(function(response) {
         if (response && response != "") {
-            var checkList = JSON.parse(response);
-            if (this.timeOutCount <= this.TimeOutMax) {
-                if (checkList.files.length > this.FileList.files.length && response.indexOf("mp4.part") == -1) {
-                    Mojo.Log.info("a new file has appeared!");
-                    clearInterval(this.FileCheckInt);
-                    var videoPath = this.findNewFile(checkList);
-                    if (videoPath != null && videoPath != "") {
-                        //Calculate full URL
-                        videoPath = this.PlaybackURLBase + "/" + videoPath;
-
-                        //Update video request history (we're forced to assume this result is for the most recent request)
-                        updateVideoRequest = this.VideoRequests[this.VideoRequests.length - 1];
-                        updateVideoRequest.videoPath = videoPath;
-                        this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
-                        //Mojo.Log.info("Request history: " + JSON.stringify(this.VideoRequests));
-
-                        //Play the video
-                        Mojo.Log.info("About to play video: " + videoPath);
-                        this.playPreparedVideo(videoPath);
-                    } else {
-                        Mojo.Log.error("Unable to find a video file to play!");
-                    }
-                }
-                this.timeOutCount++;
-            } else {
-                Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
-                Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
+            var responseObj = JSON.parse(response);
+            if (responseObj.status == "error") {
                 clearInterval(this.FileCheckInt);
+                Mojo.Log.error("Error message from server while checking for new files: " + responseObj.msg);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the check file request with: " + responseObj.msg.replace("ERROR: ", ""));
+            } else {
+                checkList = responseObj;
+                if (this.timeOutCount <= this.TimeOutMax) {
+                    if (checkList.files && checkList.files.length > this.FileList.files.length) {
+                        Mojo.Log.info("A new file has appeared on the server!");
+                        clearInterval(this.FileCheckInt);
+                        var videoPath = this.findNewFile(checkList);
+                        if (videoPath != null && videoPath != "") {
+                            //Calculate full URL
+                            if (videoPath.indexOf("|") != -1) {
+                                //TODO: DEVELOPER MODE
+                                videoPath = videoPath.split("|");
+                                videoPath = videoPatt[0];
+                            }
+
+                            //Update video request history (we're forced to assume this result is for the most recent request)
+                            updateVideoRequest = this.VideoRequests[this.VideoRequests.length - 1];
+                            updateVideoRequest.videoPath = videoPath;
+                            this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
+
+                            //Play the video
+                            Mojo.Log.info("About to play video: " + videoPath);
+                            this.playPreparedVideo(videoPath);
+                        } else {
+                            Mojo.Log.error("Unable to find a video file to play!");
+                        }
+                    }
+                    this.timeOutCount++;
+                } else {
+                    Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
+                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
+                    clearInterval(this.FileCheckInt);
+                }
             }
         } else {
             clearInterval(this.FileCheckInt);
-            Mojo.Log.error("No usable response from server: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response. Check network connectivity.");
+            Mojo.Log.error("No usable response from server while checking for new files: " + response);
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity.");
         }
         //stop spinner
         this.spinnerModel.spinning = false;
@@ -289,24 +280,27 @@ MainAssistant.prototype.checkForNewFiles = function() {
 
 //Identify which is the new file
 MainAssistant.prototype.findNewFile = function(checkList) {
-    Mojo.Log.info("searching checkList for new files: " + JSON.stringify(checkList));
+    //Mojo.Log.info("searching checkList for new files: " + JSON.stringify(checkList));
     var knownFiles = [];
+    //Load our saved file list into an array for easy comparison
     for (var j = 0; j < this.FileList.files.length; j++) {
-        knownFiles.push(this.FileList.files[j].file);
+        knownFiles.push(this.decodeResponse(this.FileList.files[j].file));
     }
+    // Check each file in response against known file list
     for (var i = 0; i < checkList.files.length; i++) {
-        var checkFile = checkList.files[i].file;
+        var checkFile = this.decodeResponse(checkList.files[i].file);
         if (knownFiles.indexOf(checkFile) == -1) {
-            Mojo.Log.info("file to play is: " + checkFile);
+            Mojo.Log.info("File to play is: " + checkFile);
             return checkFile;
         }
     }
 }
 
-//Ask the server to prepare a new video file for us
-MainAssistant.prototype.requestFile = function(theFile) {
+//Ask MeTube to prepare a new video file for us
+MainAssistant.prototype.addFile = function(theFile) {
     //Mojo.Log.info("Time to submit a file request: " + theFile);
-    this.doMeTubeRequest(theFile, function(response) {
+    this.DoMeTubeAddRequest(theFile, function(response) {
+        Mojo.Log.info("add response: " + response);
         if (response && response != "" && response.indexOf("status") != -1) {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "ok") {
@@ -318,45 +312,24 @@ MainAssistant.prototype.requestFile = function(theFile) {
                 this.spinnerModel.spinning = false;
                 this.controller.modelChanged(this.spinnerModel);
 
-                Mojo.Log.error("Server error reported: " + responseObj.msg);
-                Mojo.Additions.ShowDialogBox("Server Message", "The server reports: " + responseObj.msg.replace("ERROR: ", "") + "<br>This response usually does not indicate a problem with the server itself, but some upstream dependency (like Google, or the server's file system.)");
+                Mojo.Log.error("Server Error while adding new file request" + responseObj.msg);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
             }
         } else {
             //stop spinner
             this.spinnerModel.spinning = false;
             this.controller.modelChanged(this.spinnerModel);
 
-            Mojo.Log.error("No usable response from server: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response. Check network connectivity.");
+            Mojo.Log.error("No usable response from server while adding new file request: " + response);
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity.");
         }
     }.bind(this));
 }
 
-//HTTP request for requestFile
-MainAssistant.prototype.doMeTubeRequest = function(youtubeURL, callback) {
-
-    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.ServiceURL);
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("POST", this.ServiceURL);
-    xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xmlhttp.send(JSON.stringify({ "url": youtubeURL, "quality": "best" }));
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
-}
-
 //Actually play the video we requested 
 MainAssistant.prototype.playPreparedVideo = function(videoURL) {
-    //stop spinner
-    this.spinnerModel.spinning = false;
-    this.controller.modelChanged(this.spinnerModel);
+
+    videoURL = this.BuildMeTubePlaybackRequest(videoURL);
 
     //Ask webOS to launch the video player with the new url
     this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
@@ -370,11 +343,17 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
         onSuccess: function(response) {
             Mojo.Log.info("Video player launch success", JSON.stringify(response));
             $("txtYoutubeURL").focus();
-        },
+            //stop spinner
+            this.spinnerModel.spinning = false;
+            this.controller.modelChanged(this.spinnerModel);
+        }.bind(this),
         onFailure: function(response) {
             Mojo.Log.error("Video player launch Failure, " + videoURL + ":",
                 JSON.stringify(response), response.errorText);
-        }
+            //stop spinner
+            this.spinnerModel.spinning = false;
+            this.controller.modelChanged(this.spinnerModel);
+        }.bind(this)
     });
     return true;
 }
@@ -383,47 +362,30 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
     Mojo.Log.info("Search requested: " + videoRequest)
     this.SearchValue = videoRequest;
-    this.getSearchResults(videoRequest, function(response) {
-        Mojo.Log.info("ready to process search results!");
+    this.DoMeTubeSearchRequest(videoRequest, function(response) {
+        //Mojo.Log.info("ready to process search results: " + response);
         if (response != null && response != "") {
             var responseObj = JSON.parse(response);
-            if (responseObj.items && responseObj.items.length > 0) {
-                //If we got a good looking response, update the UI
-                this.updateSearchResultsList(responseObj.items);
+            if (responseObj.status == "error") {
+                Mojo.Log.error("Error message from server while searching YouTube: " + responseObj.msg);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the search request with: " + responseObj.msg.replace("ERROR: ", ""));
             } else {
-                Mojo.Log.warn("Search results were empty. This is unlikely, server, API or connectivity problem possible");
-                Mojo.Additions.ShowDialogBox("No results", "The server did not report any matches for the search.");
+                if (responseObj.items && responseObj.items.length > 0) {
+                    //If we got a good looking response, update the UI
+                    this.updateSearchResultsList(responseObj.items);
+                } else {
+                    Mojo.Log.warn("Search results were empty. This is unlikely, server, API or connectivity problem possible");
+                    Mojo.Additions.ShowDialogBox("No results", "The server did not report any matches for the search.");
+                }
             }
         } else {
-            Mojo.Log.error("No usable response from server: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response. Check network connectivity.");
+            Mojo.Log.error("No usable response from server while searching YouTube: " + response);
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity.");
         }
         //stop spinner
         this.spinnerModel.spinning = false;
         this.controller.modelChanged(this.spinnerModel);
     }.bind(this));
-}
-
-//Get the results from Search Request
-MainAssistant.prototype.getSearchResults = function(searchString, callback) {
-    Mojo.Log.info("Getting search results: " + this.PlaybackURLBase);
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    //var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
-    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", searchURL);
-    xmlhttp.send();
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            //Mojo.Log.info("Google API responded: " + xmlhttp.responseText);
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
 }
 
 //Update the UI with search results from Search Request
@@ -433,7 +395,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     thisWidgetSetup.model.items = []; //remove the previous list
 
     for (var i = 0; i < results.length; i++) {
-        thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, videoName: decodeURI(results[i].snippet.title), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
+        thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, videoName: decodeURI(this.decodeEntities(results[i].snippet.title)), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
     }
 
     Mojo.Log.info("Updating search results widget with " + results.length + " results!");
@@ -463,6 +425,26 @@ MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {
     return videoRequest;
 }
 
+MainAssistant.prototype.decodeEntities = function(text) {
+    var entities = [
+        ['amp', '&'],
+        ['apos', '\''],
+        ['#x27', '\''],
+        ['#x2F', '/'],
+        ['#39', '\''],
+        ['#47', '/'],
+        ['lt', '<'],
+        ['gt', '>'],
+        ['nbsp', ' '],
+        ['quot', '"']
+    ];
+
+    for (var i = 0, max = entities.length; i < max; ++i)
+        text = text.replace(new RegExp('&' + entities[i][0] + ';', 'g'), entities[i][1]);
+
+    return text;
+}
+
 MainAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
        this scene is popped or another scene is pushed on top */
@@ -472,3 +454,96 @@ MainAssistant.prototype.cleanup = function(event) {
     /* this function should do any cleanup needed before the scene is destroyed as 
        a result of being popped off the scene stack */
 };
+
+/* MeTube Helper Functions */
+
+//HTTP request for add file
+MainAssistant.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
+
+    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.AddURLBase);
+    this.retVal = "";
+    if (callback)
+        callback = callback.bind(this);
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("POST", this.AddURLBase);
+    //xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.send(this.encodeRequest(youtubeURL));
+    //xmlhttp.send(JSON.stringify({ "url": youtubeURL, "quality": "best" }));
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+            if (callback)
+                callback(xmlhttp.responseText);
+        }
+    }.bind(this);
+}
+
+//HTTP request for list files
+MainAssistant.prototype.DoMeTubeListRequest = function(callback) {
+    this.retVal = "";
+    if (callback)
+        callback = callback.bind(this);
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", this.ListURLBase);
+    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.send();
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+            if (callback)
+                callback(xmlhttp.responseText);
+        }
+    }.bind(this);
+}
+
+//HTTP request for search
+MainAssistant.prototype.DoMeTubeSearchRequest = function(searchString, callback) {
+    Mojo.Log.info("Getting search results: " + this.SearchURLBase);
+    this.retVal = "";
+    if (callback)
+        callback = callback.bind(this);
+
+    //var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
+    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", searchURL);
+    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.send();
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+            //Mojo.Log.info("Search response: " + xmlhttp.responseText);
+            if (callback)
+                callback(xmlhttp.responseText);
+        }
+    }.bind(this);
+}
+
+//Form HTTP request URL for playback
+MainAssistant.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
+    videoURL = encodeURI(videoURL) + "&requestid=" + this.encodeRequest(appKeys['clientKey'] + "|" + encodeURI(videoURL));
+    videoURL = this.PlaybackURLBase + "?video=" + videoURL;
+    Mojo.Log.info("Actual video request is: " + videoURL);
+    return videoURL;
+}
+
+MainAssistant.prototype.encodeRequest = function(request) {
+    request = btoa(request);
+    var strLen = request.length;
+    var randPos = Math.random() * (strLen - 1 - 0) + 0;
+    var str1 = request.substring(0, randPos);
+    var str2 = request.substring(randPos);
+    request = str1 + appKeys["serverId"] + str2;
+    //Mojo.Log.info("encoded request: " + request);
+    return request;
+}
+
+MainAssistant.prototype.decodeResponse = function(response) {
+    if (response.indexOf(appKeys["serverId"]) != -1) {
+        response = response.replace(appKeys["serverId"], "");
+        response = atob(response);
+        //Mojo.Log.info("decoded response: " + response);
+        return response;
+    }
+    Mojo.Log.error("Bad response from server: unexpected encoding.");
+}
