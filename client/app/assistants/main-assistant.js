@@ -522,7 +522,7 @@ MainAssistant.prototype.DoMeTubeSearchRequest = function(searchString, callback)
 //Form HTTP request URL for playback
 MainAssistant.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
     videoURL = encodeURI(videoURL) + "&requestid=" + this.encodeRequest(atob(appKeys['clientKey']) + "|" + encodeURI(videoURL));
-    videoURL = this.PlaybackURLBase + "?video=" + videoURL;
+    videoURL = this.PlaybackURLBase + "?video=" + encodeURI(videoURL);
     Mojo.Log.info("Actual video request is: " + videoURL);
     return videoURL;
 }
