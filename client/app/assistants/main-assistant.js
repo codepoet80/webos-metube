@@ -468,7 +468,7 @@ MainAssistant.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("POST", this.AddURLBase);
     //xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
     xmlhttp.send(this.encodeRequest(youtubeURL));
     //xmlhttp.send(JSON.stringify({ "url": youtubeURL, "quality": "best" }));
     xmlhttp.onreadystatechange = function() {
@@ -487,7 +487,7 @@ MainAssistant.prototype.DoMeTubeListRequest = function(callback) {
 
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", this.ListURLBase);
-    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -508,7 +508,7 @@ MainAssistant.prototype.DoMeTubeSearchRequest = function(searchString, callback)
     var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);
-    xmlhttp.setRequestHeader("Client-Id", appKeys['clientKey']);
+    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -521,7 +521,7 @@ MainAssistant.prototype.DoMeTubeSearchRequest = function(searchString, callback)
 
 //Form HTTP request URL for playback
 MainAssistant.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
-    videoURL = encodeURI(videoURL) + "&requestid=" + this.encodeRequest(appKeys['clientKey'] + "|" + encodeURI(videoURL));
+    videoURL = encodeURI(videoURL) + "&requestid=" + this.encodeRequest(atob(appKeys['clientKey']) + "|" + encodeURI(videoURL));
     videoURL = this.PlaybackURLBase + "?video=" + videoURL;
     Mojo.Log.info("Actual video request is: " + videoURL);
     return videoURL;
@@ -533,14 +533,14 @@ MainAssistant.prototype.encodeRequest = function(request) {
     var randPos = Math.random() * (strLen - 1 - 0) + 0;
     var str1 = request.substring(0, randPos);
     var str2 = request.substring(randPos);
-    request = str1 + appKeys["serverId"] + str2;
+    request = str1 + atob(appKeys["serverId"]) + str2;
     //Mojo.Log.info("encoded request: " + request);
     return request;
 }
 
 MainAssistant.prototype.decodeResponse = function(response) {
-    if (response.indexOf(appKeys["serverId"]) != -1) {
-        response = response.replace(appKeys["serverId"], "");
+    if (response.indexOf(atob(appKeys["serverId"])) != -1) {
+        response = response.replace(atob(appKeys["serverId"]), "");
         response = atob(response);
         //Mojo.Log.info("decoded response: " + response);
         return response;
