@@ -7,6 +7,13 @@ $client_key = $config['client_key'];
 $debug_key = $config['debug_key'];
 $debug_mode = true;
 
+function dealWithWeirdCharacters($in_str) {
+        $in_str = str_replace("â", "’", $in_str);
+	$in_str = str_replace("", "", $in_str);
+	$in_str = str_replace("", "", $in_str);
+  	return $in_str;
+}
+
 //validate request id
 $request_id = $_GET['requestid'];
 if (strpos($request_id, $server_id) !== false)
@@ -47,12 +54,15 @@ if (strpos($request_id, $server_id) !== false)
 	}
 
 	//decode requested file
-	$file_name = rawurldecode($video_requested);
-
+	$file_name = rawurldecode($request_id);
+	$file_name = dealWithWeirdCharacters($file_name);
+//	echo "file is" . $file_name;
+//die;
 	//try to find and send the requested file
 	$file_name = $dir . $file_name;
 
 	//TODO: we could also limit file size here
+	//TODO: to deal with emojis, we could also do a file search here
 	if (file_exists($file_name)) {
 		$file_size = (string)(filesize($file_name));
 		header('Content-Type: video/mp4');
@@ -69,6 +79,7 @@ if (strpos($request_id, $server_id) !== false)
 		echo ("File doesn't exist<br>");
 		if ($debug_mode) {
 			echo $file_name . "<br>";
+			echo rawurldecode($request_id) . "<br>";
 		}
 		die;
 	}
