@@ -15,10 +15,6 @@ function MainAssistant() {
 
 MainAssistant.prototype.setup = function() {
 
-    this.SearchURLBase = "http://metube.webosarchive.com/search.php";
-    this.AddURLBase = "http://metube.webosarchive.com/add.php";
-    this.ListURLBase = "http://metube.webosarchive.com/list.php";
-    this.PlaybackURLBase = "http://metube.webosarchive.com/play.php";
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
     /* This value will be multiplied by 2000 to determine total number of milliseconds the client will wait for the server to finish preparing a video.
        Changing this value allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
@@ -120,7 +116,7 @@ MainAssistant.prototype.handleClick = function(event) {
         videoRequest = this.checkForSpecialCases(videoRequest);
 
         //If this is a URL
-        if (videoRequest.indexOf("youtube.com") != -1) {
+        if (videoRequest.indexOf("youtube.com") != -1 || videoRequest.indexOf("youtu.be") != -1) {
             this.findOrRequestVideo(videoRequest);
         }
         //Otherwise it must be a search query
@@ -192,7 +188,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     }
     if (!historyPath) {
         //Ask server for existing file list so we can determine when a new file is ready
-        this.DoMeTubeListRequest(function(response) {
+        metubeModel.DoMeTubeListRequest(function(response) {
             //Mojo.Log.info("Server file list now: " + response);
             /* Note: This house-of-cards depends on each request from all users creating a new file on the server
                 which this client will find by comparing the file list before its request, to the file list after
@@ -226,7 +222,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
     Mojo.Log.info("Checking for new files...");
-    this.DoMeTubeListRequest(function(response) {
+    metubeModel.DoMeTubeListRequest(function(response) {
         if (response && response != "") {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "error") {
@@ -284,11 +280,11 @@ MainAssistant.prototype.findNewFile = function(checkList) {
     var knownFiles = [];
     //Load our saved file list into an array for easy comparison
     for (var j = 0; j < this.FileList.files.length; j++) {
-        knownFiles.push(this.decodeResponse(this.FileList.files[j].file));
+        knownFiles.push(metubeModel.decodeResponse(this.FileList.files[j].file));
     }
     // Check each file in response against known file list
     for (var i = 0; i < checkList.files.length; i++) {
-        var checkFile = this.decodeResponse(checkList.files[i].file);
+        var checkFile = metubeModel.decodeResponse(checkList.files[i].file);
         if (knownFiles.indexOf(checkFile) == -1) {
             Mojo.Log.info("File to play is: " + checkFile);
             return checkFile;
@@ -299,7 +295,7 @@ MainAssistant.prototype.findNewFile = function(checkList) {
 //Ask MeTube to prepare a new video file for us
 MainAssistant.prototype.addFile = function(theFile) {
     //Mojo.Log.info("Time to submit a file request: " + theFile);
-    this.DoMeTubeAddRequest(theFile, function(response) {
+    metubeModel.DoMeTubeAddRequest(theFile, function(response) {
         Mojo.Log.info("add response: " + response);
         if (response && response != "" && response.indexOf("status") != -1) {
             var responseObj = JSON.parse(response);
@@ -329,7 +325,7 @@ MainAssistant.prototype.addFile = function(theFile) {
 //Actually play the video we requested 
 MainAssistant.prototype.playPreparedVideo = function(videoURL) {
 
-    videoURL = this.BuildMeTubePlaybackRequest(videoURL);
+    videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
 
     //Ask webOS to launch the video player with the new url
     this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
@@ -362,7 +358,7 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
     Mojo.Log.info("Search requested: " + videoRequest)
     this.SearchValue = videoRequest;
-    this.DoMeTubeSearchRequest(videoRequest, function(response) {
+    metubeModel.DoMeTubeSearchRequest(videoRequest, function(response) {
         //Mojo.Log.info("ready to process search results: " + response);
         if (response != null && response != "") {
             var responseObj = JSON.parse(response);
@@ -454,96 +450,3 @@ MainAssistant.prototype.cleanup = function(event) {
     /* this function should do any cleanup needed before the scene is destroyed as 
        a result of being popped off the scene stack */
 };
-
-/* MeTube Helper Functions */
-
-//HTTP request for add file
-MainAssistant.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
-
-    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.AddURLBase);
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("POST", this.AddURLBase);
-    //xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
-    xmlhttp.send(this.encodeRequest(youtubeURL));
-    //xmlhttp.send(JSON.stringify({ "url": youtubeURL, "quality": "best" }));
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
-}
-
-//HTTP request for list files
-MainAssistant.prototype.DoMeTubeListRequest = function(callback) {
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", this.ListURLBase);
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
-    xmlhttp.send();
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
-}
-
-//HTTP request for search
-MainAssistant.prototype.DoMeTubeSearchRequest = function(searchString, callback) {
-    Mojo.Log.info("Getting search results: " + this.SearchURLBase);
-    this.retVal = "";
-    if (callback)
-        callback = callback.bind(this);
-
-    //var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
-    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", searchURL);
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
-    xmlhttp.send();
-    xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            //Mojo.Log.info("Search response: " + xmlhttp.responseText);
-            if (callback)
-                callback(xmlhttp.responseText);
-        }
-    }.bind(this);
-}
-
-//Form HTTP request URL for playback
-MainAssistant.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
-    videoURL = encodeURI(videoURL) + "&requestid=" + this.encodeRequest(atob(appKeys['clientKey']) + "|" + encodeURI(videoURL));
-    videoURL = this.PlaybackURLBase + "?video=" + encodeURI(videoURL);
-    Mojo.Log.info("Actual video request is: " + videoURL);
-    return videoURL;
-}
-
-MainAssistant.prototype.encodeRequest = function(request) {
-    request = btoa(request);
-    var strLen = request.length;
-    var randPos = Math.random() * (strLen - 1 - 0) + 0;
-    var str1 = request.substring(0, randPos);
-    var str2 = request.substring(randPos);
-    request = str1 + atob(appKeys["serverId"]) + str2;
-    //Mojo.Log.info("encoded request: " + request);
-    return request;
-}
-
-MainAssistant.prototype.decodeResponse = function(response) {
-    if (response.indexOf(atob(appKeys["serverId"])) != -1) {
-        response = response.replace(atob(appKeys["serverId"]), "");
-        response = atob(response);
-        //Mojo.Log.info("decoded response: " + response);
-        return response;
-    }
-    Mojo.Log.error("Bad response from server: unexpected encoding.");
-}
