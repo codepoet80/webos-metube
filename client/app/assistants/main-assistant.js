@@ -16,16 +16,17 @@ function MainAssistant() {
 MainAssistant.prototype.setup = function() {
 
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
-    /* This value will be multiplied by 2000 to determine total number of milliseconds the client will wait for the server to finish preparing a video.
-       Changing this value allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
-    this.TimeOutMax = 15; //TODO: If this becomes a user preferences, it should need exceed (or even approach) the ServerCleanupTime
+    /* This value will is the total number of milliseconds the client will wait for the server to finish preparing a video.
+       Changing this value on the server allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
+    this.TimeOutMax = 20; //This value is multiplied by 2, since we check interval is two second. 
+    //TODO: If this becomes a user preferences, it should need exceed (or even approach) the ServerCleanupTime
     this.FileCheckInt;
     this.SearchValue = "";
     this.FileList = [];
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     //TODO: We could be even more resilient if we saved this in a preference.
 
-    //Get video button
+    //Submit button
     this.controller.setupWidget("btnGetVideo",
         this.attributes = {},
         this.model = {
@@ -87,8 +88,21 @@ MainAssistant.prototype.activate = function(event) {
     Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
     // Non-Mojo widgets
-    $("btnClear").addEventListener("click", this.handleClearTap.bind(this));
+    $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
     $("txtYoutubeURL").focus();
+
+    //find out what kind of device this is
+    if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3)
+        this.DeviceType = "Touchpad";
+    else {
+        if (window.screen.width == 400 || window.screen.height == 400)
+            this.DeviceType = "Tiny"
+    }
+    if (this.DeviceType == "Touchpad")
+        Mojo.Log.warn("Launching on a TouchPad, some behaviors will change!");
+    else if (this.DeviceType == "Tiny")
+        Mojo.Log.warn("Launching on a Veer or Pixi, some beavhiors will change");
+
 };
 
 //Handle menu and button bar commands
@@ -218,6 +232,71 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
         this.playPreparedVideo(historyPath);
     }
 }
+
+//Send a search request to MeTube to send to Google for us (never worry about HTTPS encryption again)
+MainAssistant.prototype.searchYouTube = function(videoRequest) {
+    Mojo.Log.info("Search requested: " + videoRequest)
+    this.SearchValue = videoRequest;
+    metubeModel.DoMeTubeSearchRequest(videoRequest, function(response) {
+        //Mojo.Log.info("ready to process search results: " + response);
+        if (response != null && response != "") {
+            var responseObj = JSON.parse(response);
+            if (responseObj.status == "error") {
+                Mojo.Log.error("Error message from server while searching YouTube: " + responseObj.msg);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the search request with: " + responseObj.msg.replace("ERROR: ", ""));
+            } else {
+                if (responseObj.items && responseObj.items.length > 0) {
+                    //If we got a good looking response, update the UI
+                    this.updateSearchResultsList(responseObj.items);
+                } else {
+                    Mojo.Log.warn("Search results were empty. This is unlikely, server, API or connectivity problem possible");
+                    Mojo.Additions.ShowDialogBox("No results", "The server did not report any matches for the search.");
+                }
+            }
+        } else {
+            Mojo.Log.error("No usable response from server while searching YouTube: " + response);
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity.");
+        }
+        //stop spinner
+        this.spinnerModel.spinning = false;
+        this.controller.modelChanged(this.spinnerModel);
+    }.bind(this));
+}
+
+//Update the UI with search results from Search Request
+MainAssistant.prototype.updateSearchResultsList = function(results) {
+
+    var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
+    thisWidgetSetup.model.items = []; //remove the previous list
+    for (var i = 0; i < results.length; i++) {
+        if (this.DeviceType == "Touchpad")
+            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", titleMargin: "10em", videoName: decodeURI(this.decodeEntities(results[i].snippet.title)), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
+        else {
+            //Tiny devices with old OSes don't handle word wrapping well.
+            //TODO: This was debugged on a Veer. These measurements are probably different for a Pre2 and Pre3
+            var useName = decodeURI(this.decodeEntities(results[i].snippet.title.substring(0, 22)));
+            useName = this.forceWordWrap(useName, 8);
+            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "7px", titleMargin: "158px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+        }
+    }
+
+    Mojo.Log.info("Updating search results widget with " + results.length + " results!");
+    $("showResultsList").style.display = "block";
+    this.controller.modelChanged(thisWidgetSetup.model);
+}
+
+//TODO: Improve
+MainAssistant.prototype.forceWordWrap = function(str, len) {
+    var splitString = [];
+    do { splitString.push(str.substring(0, len)) }
+    while ((str = str.substring(len, str.length)) != "");
+    var newString = splitString.join();
+    Mojo.Log.info(newString);
+    newString = newString.replace(/,/g, " ");
+    Mojo.Log.info(newString);
+    return newString;
+}
+
 
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
@@ -352,51 +431,6 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
         }.bind(this)
     });
     return true;
-}
-
-//Send a search request to MeTube to send to Google for us (never worry about HTTPS encryption again)
-MainAssistant.prototype.searchYouTube = function(videoRequest) {
-    Mojo.Log.info("Search requested: " + videoRequest)
-    this.SearchValue = videoRequest;
-    metubeModel.DoMeTubeSearchRequest(videoRequest, function(response) {
-        //Mojo.Log.info("ready to process search results: " + response);
-        if (response != null && response != "") {
-            var responseObj = JSON.parse(response);
-            if (responseObj.status == "error") {
-                Mojo.Log.error("Error message from server while searching YouTube: " + responseObj.msg);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the search request with: " + responseObj.msg.replace("ERROR: ", ""));
-            } else {
-                if (responseObj.items && responseObj.items.length > 0) {
-                    //If we got a good looking response, update the UI
-                    this.updateSearchResultsList(responseObj.items);
-                } else {
-                    Mojo.Log.warn("Search results were empty. This is unlikely, server, API or connectivity problem possible");
-                    Mojo.Additions.ShowDialogBox("No results", "The server did not report any matches for the search.");
-                }
-            }
-        } else {
-            Mojo.Log.error("No usable response from server while searching YouTube: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity.");
-        }
-        //stop spinner
-        this.spinnerModel.spinning = false;
-        this.controller.modelChanged(this.spinnerModel);
-    }.bind(this));
-}
-
-//Update the UI with search results from Search Request
-MainAssistant.prototype.updateSearchResultsList = function(results) {
-
-    var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
-    thisWidgetSetup.model.items = []; //remove the previous list
-
-    for (var i = 0; i < results.length; i++) {
-        thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, videoName: decodeURI(this.decodeEntities(results[i].snippet.title)), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
-    }
-
-    Mojo.Log.info("Updating search results widget with " + results.length + " results!");
-    $("showResultsList").style.display = "block";
-    this.controller.modelChanged(thisWidgetSetup.model);
 }
 
 MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {

@@ -20,12 +20,11 @@
 }
 
 .video-title {
-    padding-top: 20px;
-    margin-left: 198px;
     overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 
-.search-box {
+.search-box-off {
     padding-left: 14px;
     padding-right: 14px;
     height: 31px;
@@ -34,10 +33,26 @@
     border-radius: 15px 0px 0px 15px;
 }
 
-.clear-button {
-    width: 48px;
-    margin-left: -20px;
-    background-color: darkgray;
-    border: 1px soild dimgray;
-    border-radius: 0px 15px 15px 0px;
+.search-input {
+    position: relative;
+    width: 90%;
+    padding-top: 10px;
+}
+
+.search-input input {
+    height: 31px;
+    border: 1px solid darkgray;
+    border-radius: 15px;
+    display: block;
+    width: 100%;
+    padding-left: 10px;
+    margin-left: 5%;
+    box-sizing: border-box
+}
+
+.search-input img {
+    position: absolute;
+    top: 15px;
+    right: 0px;
+    margin-right: -5%;
 }
