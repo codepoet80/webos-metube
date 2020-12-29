@@ -130,7 +130,7 @@ MainAssistant.prototype.handleClick = function(event) {
         videoRequest = this.checkForSpecialCases(videoRequest);
 
         //If this is a URL
-        if (videoRequest.indexOf("youtube.com") != -1 || videoRequest.indexOf("youtu.be") != -1) {
+        if (videoRequest.toLowerCase().indexOf("youtube.com") != -1 || videoRequest.toLowerCase().indexOf("youtu.be") != -1) {
             this.findOrRequestVideo(videoRequest);
         }
         //Otherwise it must be a search query
