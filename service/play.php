@@ -7,13 +7,6 @@ $client_key = $config['client_key'];
 $debug_key = $config['debug_key'];
 $debug_mode = true;
 
-function dealWithWeirdCharacters($in_str) {
-        $in_str = str_replace("â", "’", $in_str);
-	$in_str = str_replace("", "", $in_str);
-	$in_str = str_replace("", "", $in_str);
-  	return $in_str;
-}
-
 //validate request id
 $request_id = $_GET['requestid'];
 if (strpos($request_id, $server_id) !== false)
@@ -33,19 +26,12 @@ if (strpos($request_id, $server_id) !== false)
 			echo ("Not authorized");
 			die;
 		} else {
+			//extract decoded filename
 			if (in_array($debug_key, $request_parts))
 				$debug_mode = true;
 			$request_id = str_replace($client_key, "", $request_id);
 			$request_id = str_replace($debug_key, "", $request_id);
 			$request_id = str_replace("|", "", $request_id);
-			if (urldecode($request_id) != rawurldecode($video_requested)) {
-				header('HTTP/1.1 406 Not acceptable');
-                        	echo ("Not acceptable<br>");
-				if ($debug_mode) {
-					echo urldecode($request_id) . "!=<br>" . rawurldecode($video_requested);
-				}
-				die;
-			}
 		}
 	} else {
 		header('HTTP/1.1 403 Forbidden');
@@ -53,16 +39,11 @@ if (strpos($request_id, $server_id) !== false)
 		die;
 	}
 
-	//decode requested file
-	$file_name = rawurldecode($request_id);
-	$file_name = dealWithWeirdCharacters($file_name);
-//	echo "file is" . $file_name;
-//die;
 	//try to find and send the requested file
+	$file_name = $request_id;
 	$file_name = $dir . $file_name;
 
 	//TODO: we could also limit file size here
-	//TODO: to deal with emojis, we could also do a file search here
 	if (file_exists($file_name)) {
 		$file_size = (string)(filesize($file_name));
 		header('Content-Type: video/mp4');

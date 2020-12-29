@@ -11,8 +11,8 @@ $debug_key = $config['debug_key'];
 
 $request_headers = getallheaders();
 if (!array_key_exists('Client-Id', $request_headers)) {
-        echo "{\"status\": \"error\", \"msg\": \"ERROR: Not authorized\"}";
-        die;
+       echo "{\"status\": \"error\", \"msg\": \"ERROR: Not authorized, no key.\"}";
+       die;
 } else {
         $request_key = $request_headers['Client-Id'];
         if (($request_key != $client_key) && ($request_key != $debug_key)) {
@@ -31,6 +31,9 @@ $search_path = "https://www.googleapis.com/youtube/v3/search?" . $the_query . "&
 $myfile = fopen($search_path, "rb");
 $content = stream_get_contents($myfile);
 fclose($myfile);
-
+if (!isset($content) || $content == "") {
+        echo "{\"status\": \"error\", \"msg\": \"ERROR: No response from Google. API quota may have been exceeded.\"}";
+	die;
+}
 echo ($content);
 ?>
