@@ -329,10 +329,18 @@ MainAssistant.prototype.checkForNewFiles = function() {
                             this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
 
                             //Play the video
-                            Mojo.Log.info("About to play video: " + videoPath);
                             this.playPreparedVideo(videoPath);
+
+                            //stop spinner
+                            this.spinnerModel.spinning = false;
+                            this.controller.modelChanged(this.spinnerModel);
                         } else {
                             Mojo.Log.error("Unable to find a video file to play!");
+                            clearInterval(this.FileCheckInt);
+
+                            //stop spinner
+                            this.spinnerModel.spinning = false;
+                            this.controller.modelChanged(this.spinnerModel);
                         }
                     }
                     this.timeOutCount++;
@@ -340,16 +348,21 @@ MainAssistant.prototype.checkForNewFiles = function() {
                     Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
                     Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
                     clearInterval(this.FileCheckInt);
+
+                    //stop spinner
+                    this.spinnerModel.spinning = false;
+                    this.controller.modelChanged(this.spinnerModel);
                 }
             }
         } else {
-            clearInterval(this.FileCheckInt);
             Mojo.Log.error("No usable response from server while checking for new files: " + response);
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity.");
+            clearInterval(this.FileCheckInt);
+
+            //stop spinner
+            this.spinnerModel.spinning = false;
+            this.controller.modelChanged(this.spinnerModel);
         }
-        //stop spinner
-        this.spinnerModel.spinning = false;
-        this.controller.modelChanged(this.spinnerModel);
     }.bind(this));
 }
 
@@ -365,7 +378,7 @@ MainAssistant.prototype.findNewFile = function(checkList) {
     for (var i = 0; i < checkList.files.length; i++) {
         var checkFile = metubeModel.decodeResponse(checkList.files[i].file);
         if (knownFiles.indexOf(checkFile) == -1) {
-            Mojo.Log.info("File to play is: " + checkFile);
+            Mojo.Log.info("New file found is: " + checkFile);
             return checkFile;
         }
     }
