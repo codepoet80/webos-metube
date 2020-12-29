@@ -89,6 +89,7 @@ MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
 }
 
 MainAssistant.prototype.activate = function(event) {
+    document.body.style.backgroundColor = "black";
     //Load preferences
     appModel.LoadSettings();
     Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
@@ -101,13 +102,17 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3)
         this.DeviceType = "Touchpad";
     else {
+        if (window.screen.width == 800 || window.screen.height == 800)
+            this.DeviceType = "Pre3";
         if (window.screen.width == 400 || window.screen.height == 400)
-            this.DeviceType = "Tiny"
+            this.DeviceType = "Tiny";
     }
     if (this.DeviceType == "Touchpad")
-        Mojo.Log.warn("Launching on a TouchPad, some behaviors will change!");
+        Mojo.Log.info("Device detected as TouchPad");
+    if (this.DeviceType == "Pre3")
+        Mojo.Log.info("Device detected as Pre3");
     else if (this.DeviceType == "Tiny")
-        Mojo.Log.warn("Launching on a Veer or Pixi, some beavhiors will change");
+        Mojo.Log.warn("Device detected as Pre2 or smaller");
 
     //Get ready for input!
     $("txtYoutubeURL").focus();
@@ -286,14 +291,18 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     thisWidgetSetup.model.items = []; //remove the previous list
     for (var i = 0; i < results.length; i++) {
+        var useName = this.decodeEntities(results[i].snippet.title);
         if (this.DeviceType == "Touchpad")
-            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", imageWidth: "178px", titleMargin: "10em", videoName: this.decodeEntities(results[i].snippet.title), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
+            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", imageWidth: "178px", titleMargin: "10em", videoName: useName, thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
         else {
             //Tiny devices with old OSes don't handle word wrapping well.
-            //TODO: This was debugged on a Veer. These measurements are probably different for a Pre2 and Pre3
-            var useName = this.decodeEntities(results[i].snippet.title.substring(0, 22));
-            useName = this.forceWordWrap(useName, 8, 24);
-            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "7px", imageWidth: "120px", titleMargin: "158px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+            if (this.DeviceType == "Pre3") {
+                useName = this.forceWordWrap(useName, 11, 34);
+                thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "4px", imageWidth: "120px", titleMargin: "148px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+            } else {
+                useName = this.forceWordWrap(useName, 9, 26);
+                thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "6px", imageWidth: "120px", titleMargin: "154px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+            }
         }
     }
 

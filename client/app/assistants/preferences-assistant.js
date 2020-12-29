@@ -6,7 +6,7 @@ function PreferencesAssistant() {
 }
 
 PreferencesAssistant.prototype.setup = function() {
-
+    document.body.style.backgroundColor = null;
     /* setup widgets here */
 
     //Timeout picker
