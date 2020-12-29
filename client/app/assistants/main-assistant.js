@@ -4,8 +4,6 @@
     All of the above are provided by webOS Archive at no cost for what remains of the webOS mobile community.
 */
 
-Mojo.Additions = Additions;
-
 function MainAssistant() {
     /* this is the creator function for your scene assistant object. It will be passed all the 
        additional parameters (after the scene name) that were passed to pushScene. The reference
@@ -60,14 +58,22 @@ MainAssistant.prototype.setup = function() {
     };
     this.controller.setupWidget('searchResultsList', this.template, this.lightInfoModel);
     //Menu
-    this.appMenuAttributes = { omitDefaultItems: false };
+    this.appMenuAttributes = { omitDefaultItems: true };
     this.appMenuModel = {
         label: "Settings",
         items: [
-            { label: "About...", command: 'do-myAbout' }
+            Mojo.Menu.editItem,
+            { label: "Preferences", command: 'do-Preferences' },
+            { label: "About", command: 'do-myAbout' }
         ]
     };
     this.controller.setupWidget(Mojo.Menu.appMenu, this.appMenuAttributes, this.appMenuModel);
+
+    /* Always on Event handlers */
+    Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
+    Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
+    // Non-Mojo widgets
+    $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
 
     //Check for updates
     updaterModel.CheckForUpdate("MeTube", this.handleUpdateResponse.bind(this));
@@ -83,13 +89,13 @@ MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
 }
 
 MainAssistant.prototype.activate = function(event) {
-    /* put in event handlers here that should only be in effect when this scene is active. For
-       example, key handlers that are observing the document */
-    Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
-    Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
-    // Non-Mojo widgets
-    $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
-    $("txtYoutubeURL").focus();
+    //Load preferences
+    appModel.LoadSettings();
+    Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
+    metubeModel.UseCustomGoogleAPIKey = appModel.AppSettingsCurrent["UseGoogleAPIKey"];
+    metubeModel.CustomGoogleAPIKey = appModel.AppSettingsCurrent["GoogleAPIKey"];
+    metubeModel.UseCustomClientAPIKey = appModel.AppSettingsCurrent["UseClientAPIKey"];
+    metubeModel.CustomClientAPIKey = appModel.AppSettingsCurrent["ClientAPIKey"];
 
     //find out what kind of device this is
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3)
@@ -103,12 +109,18 @@ MainAssistant.prototype.activate = function(event) {
     else if (this.DeviceType == "Tiny")
         Mojo.Log.warn("Launching on a Veer or Pixi, some beavhiors will change");
 
+    //Get ready for input!
+    $("txtYoutubeURL").focus();
 };
 
 //Handle menu and button bar commands
 MainAssistant.prototype.handleCommand = function(event) {
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
+            case 'do-Preferences':
+                var stageController = Mojo.Controller.stageController;
+                stageController.pushScene({ name: "preferences", disableSceneScroller: false });
+                break;
             case 'do-myAbout':
                 Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube (modified) client for webOS. Copyright 2021, Jonathan Wise. Distributed under an MIT License.<br>Client source code available at: https://github.com/codepoet80/webos-metube<br>Server source code: https://github.com/codepoet80/metube");
                 break;
@@ -180,6 +192,11 @@ MainAssistant.prototype.handleListClick = function(event) {
     //Update UI
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     this.controller.modelChanged(listWidgetSetup.model);
+
+    //Scroll back up to top (annoying)
+    // $("txtYoutubeURL").focus();
+    return false;
+
 }
 
 //Depending on history, either get previously accessed video, or request a new one from the service
@@ -275,7 +292,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             //Tiny devices with old OSes don't handle word wrapping well.
             //TODO: This was debugged on a Veer. These measurements are probably different for a Pre2 and Pre3
             var useName = decodeURI(this.decodeEntities(results[i].snippet.title.substring(0, 22)));
-            useName = this.forceWordWrap(useName, 8);
+            useName = this.forceWordWrap(useName, 8, 24);
             thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "7px", imageWidth: "120px", titleMargin: "158px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
         }
     }
@@ -285,18 +302,27 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     this.controller.modelChanged(thisWidgetSetup.model);
 }
 
-//TODO: Improve
-MainAssistant.prototype.forceWordWrap = function(str, len) {
-    var splitString = [];
-    do { splitString.push(str.substring(0, len)) }
-    while ((str = str.substring(len, str.length)) != "");
-    var newString = splitString.join();
-    Mojo.Log.info(newString);
-    newString = newString.replace(/,/g, " ");
-    Mojo.Log.info(newString);
-    return newString;
-}
+//Split up words so they wrap
+MainAssistant.prototype.forceWordWrap = function(str, mxwl, mxsl) {
+    str = str.substring(0, mxsl);
+    do {
+        longWord = false;
+        strParts = str.split(" ");
+        for (s = 0; s < strParts.length; s++) {
+            if (strParts[s].indexOf(" ") == -1 && strParts[s].length > mxwl) {
+                sstr1 = strParts[s].substring(0, mxwl);
+                sstr2 = strParts[s].substring(mxwl);
+                strParts[s] = sstr1 + " " + sstr2;
+                longWord = true;
+            }
+        }
+        str = strParts.join();
+        str = str.replace(/,/g, " ");
+        str = str.replace(/  /g, " ");
 
+    } while (longWord);
+    return str;
+}
 
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
@@ -310,7 +336,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
                 Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the check file request with: " + responseObj.msg.replace("ERROR: ", ""));
             } else {
                 checkList = responseObj;
-                if (this.timeOutCount <= this.TimeOutMax) {
+                if (this.timeOutCount <= appModel.AppSettingsCurrent["TimeoutMax"]) {
                     if (checkList.files && checkList.files.length > this.FileList.files.length) {
                         Mojo.Log.info("A new file has appeared on the server!");
                         clearInterval(this.FileCheckInt);
@@ -320,7 +346,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
                             if (videoPath.indexOf("|") != -1) {
                                 //TODO: DEVELOPER MODE
                                 videoPath = videoPath.split("|");
-                                videoPath = videoPatt[0];
+                                videoPath = videoPath[0];
                             }
 
                             //Update video request history (we're forced to assume this result is for the most recent request)
@@ -491,6 +517,10 @@ MainAssistant.prototype.decodeEntities = function(text) {
 MainAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
        this scene is popped or another scene is pushed on top */
+    Mojo.Event.stopListening(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick);
+    Mojo.Event.stopListening(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick);
+    // Non-Mojo widgets
+    $("imgSearchClear").removeEventListener("click", this.handleClearTap);
 };
 
 MainAssistant.prototype.cleanup = function(event) {

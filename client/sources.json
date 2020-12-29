@@ -4,7 +4,12 @@
         "scenes": "main",
         "source": "app/assistants/main-assistant.js"
     },
+    {
+        "scenes": "preferences",
+        "source": "app/assistants/preferences-assistant.js"
+    },
     { "source": "app/models/metube-model.js" },
     { "source": "app-keys.js" },
-    { "source": "app/models/updater-model.js" }
+    { "source": "app/models/updater-model.js" },
+    { "source": "app/models/app-model.js" }
 ]
