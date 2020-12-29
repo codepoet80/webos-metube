@@ -12,7 +12,7 @@ PreferencesAssistant.prototype.setup = function() {
     //Timeout picker
     this.controller.setupWidget("listTimeout",
         this.attributes = {
-            label: $L("Conversion Timeout"),
+            label: $L("Convert Time"),
             choices: [
                 { label: "10 seconds", value: 5 },
                 { label: "30 seconds", value: 15 },
@@ -30,7 +30,7 @@ PreferencesAssistant.prototype.setup = function() {
     //Search result picker
     this.controller.setupWidget("listSearchmax",
         this.attributes = {
-            label: $L("Max Search Results"),
+            label: $L("Max Results"),
             choices: [
                 { label: "10", value: 10 },
                 { label: "25", value: 25 },

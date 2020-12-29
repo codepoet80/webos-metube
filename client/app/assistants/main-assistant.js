@@ -16,8 +16,6 @@ MainAssistant.prototype.setup = function() {
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
     /* This value will is the total number of milliseconds the client will wait for the server to finish preparing a video.
        Changing this value on the server allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
-    this.TimeOutMax = 20; //This value is multiplied by 2, since we check interval is two second. 
-    //TODO: If this becomes a user preferences, it should need exceed (or even approach) the ServerCleanupTime
     this.FileCheckInt;
     this.SearchValue = "";
     this.FileList = [];
@@ -104,7 +102,7 @@ MainAssistant.prototype.activate = function(event) {
     else {
         if (window.screen.width == 800 || window.screen.height == 800)
             this.DeviceType = "Pre3";
-        if (window.screen.width == 400 || window.screen.height == 400)
+        else
             this.DeviceType = "Tiny";
     }
     if (this.DeviceType == "Touchpad")
@@ -127,7 +125,7 @@ MainAssistant.prototype.handleCommand = function(event) {
                 stageController.pushScene({ name: "preferences", disableSceneScroller: false });
                 break;
             case 'do-myAbout':
-                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube (modified) client for webOS. Copyright 2021, Jonathan Wise. Distributed under an MIT License.<br>Client source code available at: https://github.com/codepoet80/webos-metube<br>Server source code: https://github.com/codepoet80/metube");
+                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube client for webOS. Copyright 2021, Jon Wise. Distributed under an MIT License.<br>Source code available at: https://github.com/codepoet80/webos-metube");
                 break;
         }
     }
