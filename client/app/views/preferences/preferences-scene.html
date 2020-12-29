@@ -1,0 +1,69 @@
+<div class="palm-hasheader" style="margin-bottom:60px">
+    <div id="watchViewTitle" class="palm-header center" onclick="Mojo.Controller.stageController.popScene();">
+        Preferences
+    </div>
+</div>
+
+<div class="palm-group">
+    <div class="palm-group-title">
+        <span x-mojo-loc=''>Basic</span>
+    </div>
+
+    <div class="palm-list">
+        <div class="palm-row first">
+            <div class="palm-row-wrapper">
+                <div id="listTimeout" x-mojo-element="ListSelector" title="TimeoutMax" class="right"></div>
+            </div>
+        </div>
+
+        <div class="palm-row last">
+            <div class="palm-row-wrapper">
+                <div id="listSearchmax" x-mojo-element="ListSelector" title="SearchResultMax" class="right"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+<!-- Shown if there's no linked Hue Bridge -->
+<div class="palm-group">
+    <div class="palm-group-title">
+        <span x-mojo-loc=''>Advanced</span>
+    </div>
+
+    <div class="palm-list">
+        <div class="palm-row first">
+            <div class="palm-row-wrapper">
+                <div x-mojo-element="ToggleButton" id="toggleGoogleAPI" title="UseGoogleAPIKey"></div>
+                <div class="title" style="margin-left: -4px; float:left;"><span class="label">Custom Google API Key</span></div>
+            </div>
+        </div>
+
+        <div class="palm-row">
+            <div class="palm-row-wrapper" style="margin:14px 22px 4px 12px">
+                <div id="txtGoogleAPI" name="txtGoogleAPI" x-mojo-element="TextField" title="GoogleAPIKey"></div>
+            </div>
+        </div>
+
+        <div class="palm-row first">
+            <div class="palm-row-wrapper">
+                <div x-mojo-element="ToggleButton" id="toggleClientAPI" title="UseClientAPIKey"></div>
+                <div class="title" style="margin-left: -4px; float:left;"><span class="label">Custom Client API Key</span></div>
+            </div>
+        </div>
+
+        <div class="palm-row last">
+            <div class="palm-row-wrapper" style="margin:14px 22px 4px 12px">
+                <div id="txtClientAPI" name="txtClientAPI" x-mojo-element="TextField" title="ClientAPIKey"></div>
+            </div>
+        </div>
+        <!--
+        <div class="palm-row last">
+            <div class="palm-row-wrapper" style="margin:10px;">
+
+            </div>
+        </div>
+        -->
+    </div>
+
+</div>
+<div x-mojo-element="Button" id="btnOK" name="btnOK"></div>

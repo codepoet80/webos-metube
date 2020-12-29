@@ -1,6 +1,6 @@
 /*
 MeTube Model - Mojo
- Version 1.2
+ Version 1.3
  Created: 2020
  Author: Jonathan Wise
  License: MIT
@@ -14,6 +14,12 @@ var MetubeModel = function() {
     this.PlaybackURLBase = "http://metube.webosarchive.com/play.php";
 };
 
+//Properties
+MetubeModel.prototype.UseCustomGoogleAPIKey = false;
+MetubeModel.prototype.CustomGoogleAPIKey = "";
+MetubeModel.prototype.UseCustomClientAPIKey = false;
+MetubeModel.prototype.CustomClientAPIKey = "";
+
 //HTTP request for add file
 MetubeModel.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
 
@@ -24,10 +30,8 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
 
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("POST", this.AddURLBase);
-    //xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
+    xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send(this.encodeRequest(youtubeURL));
-    //xmlhttp.send(JSON.stringify({ "url": youtubeURL, "quality": "best" }));
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
             if (callback)
@@ -44,7 +48,7 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
 
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", this.ListURLBase);
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
+    xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -55,17 +59,17 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
 }
 
 //HTTP request for search
-MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, callback) {
+MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults, callback) {
     Mojo.Log.info("Getting search results: " + this.SearchURLBase);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
-    //var searchURL = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + "&key=" + this.APIKey;
-    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString);
+    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=" + numResults + "&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
+    //Mojo.Log.info("Asking server to search with URL: " + searchURL);
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);
-    xmlhttp.setRequestHeader("Client-Id", atob(appKeys['clientKey']));
+    xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -78,10 +82,28 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, callback) {
 
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
-    videoURL = videoURL + "&requestid=" + this.encodeRequest(atob(appKeys['clientKey']) + "|" + videoURL);
+    videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);
     videoURL = this.PlaybackURLBase + "?video=" + videoURL;
     Mojo.Log.info("Actual video request is: " + videoURL);
     return videoURL;
+}
+
+MetubeModel.prototype.getCurrentGoogleKey = function() {
+    var retVal = "";
+    if (this.UseCustomGoogleAPIKey && this.CustomGoogleAPIKey != "") {
+        retVal = "&key=" + this.CustomGoogleAPIKey;
+        Mojo.Log.info("Using API key: " + retVal);
+    }
+    return retVal;
+}
+
+MetubeModel.prototype.getCurrentClientKey = function() {
+    var retVal = atob(appKeys['clientKey']);
+    if (this.UseCustomClientAPIKey && this.CustomClientAPIKey != "") {
+        retVal = this.CustomClientAPIKey;
+        Mojo.Log.info("Using custom API key: " + retVal);
+    }
+    return retVal;
 }
 
 MetubeModel.prototype.encodeRequest = function(request) {
@@ -91,7 +113,6 @@ MetubeModel.prototype.encodeRequest = function(request) {
     var str1 = request.substring(0, randPos);
     var str2 = request.substring(randPos);
     request = str1 + atob(appKeys["serverId"]) + str2;
-    //Mojo.Log.info("encoded request: " + request);
     return request;
 }
 
@@ -99,7 +120,6 @@ MetubeModel.prototype.decodeResponse = function(response) {
     if (response.indexOf(atob(appKeys["serverId"])) != -1) {
         response = response.replace(atob(appKeys["serverId"]), "");
         response = atob(response);
-        //Mojo.Log.info("decoded response: " + response);
         return response;
     }
     Mojo.Log.error("Bad response from server: unexpected encoding.");
