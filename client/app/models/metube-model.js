@@ -59,13 +59,13 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
 }
 
 //HTTP request for search
-MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, callback) {
+MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults, callback) {
     Mojo.Log.info("Getting search results: " + this.SearchURLBase);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
-    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=25&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
+    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=" + numResults + "&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
     //Mojo.Log.info("Asking server to search with URL: " + searchURL);
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);

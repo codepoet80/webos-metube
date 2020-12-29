@@ -18,6 +18,7 @@ var AppModel = function() {
         UseClientAPIKey: false,
         GoogleAPIKey: "",
         ClientAPIKey: "",
+        SearchResultMax: 25,
         TimeoutMax: 15
     };
 }

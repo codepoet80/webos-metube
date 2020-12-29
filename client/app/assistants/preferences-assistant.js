@@ -27,6 +27,21 @@ PreferencesAssistant.prototype.setup = function() {
             disabled: false
         }
     );
+    //Search result picker
+    this.controller.setupWidget("listSearchmax",
+        this.attributes = {
+            label: $L("Max Search Results"),
+            choices: [
+                { label: "10", value: 10 },
+                { label: "25", value: 25 },
+                { label: "50", value: 50 }
+            ]
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["SearchResultMax"],
+            disabled: false
+        }
+    );
     //API Toggles
     this.controller.setupWidget("toggleGoogleAPI",
         this.attributes = {
@@ -87,6 +102,7 @@ PreferencesAssistant.prototype.setup = function() {
     /* add event handlers to listen to events from widgets */
 
     Mojo.Event.listen(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
@@ -97,7 +113,7 @@ PreferencesAssistant.prototype.setup = function() {
 PreferencesAssistant.prototype.activate = function(event) {
     /* put in event handlers here that should only be in effect when this scene is active. For
        example, key handlers that are observing the document */
-    Mojo.Log.error(document.getElementById("listTimeout").innerHTML);
+
 };
 
 PreferencesAssistant.prototype.handleValueChange = function(event) {
@@ -146,6 +162,7 @@ PreferencesAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
        this scene is popped or another scene is pushed on top */
 
+    Mojo.Event.stopListening(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange);

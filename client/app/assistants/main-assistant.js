@@ -254,7 +254,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
     Mojo.Log.info("Search requested: " + videoRequest)
     this.SearchValue = videoRequest;
-    metubeModel.DoMeTubeSearchRequest(videoRequest, function(response) {
+    metubeModel.DoMeTubeSearchRequest(videoRequest, appModel.AppSettingsCurrent["SearchResultMax"], function(response) {
         //Mojo.Log.info("ready to process search results: " + response);
         if (response != null && response != "") {
             var responseObj = JSON.parse(response);
@@ -287,11 +287,11 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     thisWidgetSetup.model.items = []; //remove the previous list
     for (var i = 0; i < results.length; i++) {
         if (this.DeviceType == "Touchpad")
-            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", imageWidth: "178px", titleMargin: "10em", videoName: decodeURI(this.decodeEntities(results[i].snippet.title)), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
+            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", imageWidth: "178px", titleMargin: "10em", videoName: this.decodeEntities(results[i].snippet.title), thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
         else {
             //Tiny devices with old OSes don't handle word wrapping well.
             //TODO: This was debugged on a Veer. These measurements are probably different for a Pre2 and Pre3
-            var useName = decodeURI(this.decodeEntities(results[i].snippet.title.substring(0, 22)));
+            var useName = this.decodeEntities(results[i].snippet.title.substring(0, 22));
             useName = this.forceWordWrap(useName, 8, 24);
             thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "7px", imageWidth: "120px", titleMargin: "158px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
         }
