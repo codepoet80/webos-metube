@@ -74,7 +74,10 @@ MainAssistant.prototype.setup = function() {
     $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
 
     //Check for updates
-    updaterModel.CheckForUpdate("MeTube", this.handleUpdateResponse.bind(this));
+    if (!appModel.UpdateCheckDone) {
+        appModel.UpdateCheckDone = true;
+        updaterModel.CheckForUpdate("MeTube", this.handleUpdateResponse.bind(this));
+    }
 };
 
 MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
