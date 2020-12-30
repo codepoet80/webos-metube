@@ -32,7 +32,11 @@ $myfile = fopen($search_path, "rb");
 $content = stream_get_contents($myfile);
 fclose($myfile);
 if (!isset($content) || $content == "") {
-        echo "{\"status\": \"error\", \"msg\": \"ERROR: No response from Google. API quota may have been exceeded.\"}";
+	if (isset($_GET["key"])) {
+	        echo "{\"status\": \"error\", \"msg\": \"ERROR: No usable response from Google. API key not allowed or quota exceeded.\"}";
+	} else {
+	        echo "{\"status\": \"error\", \"msg\": \"ERROR: No usable response from Google. API quota may have been exceeded.\"}";
+	}
 	die;
 }
 echo ($content);
