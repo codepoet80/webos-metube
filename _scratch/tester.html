@@ -1,0 +1,57 @@
+<script>
+function getE(id) 
+{ 
+	return document.getElementById( id ); 
+}
+
+function splitup(str, mxwl, mxsl)
+{
+	getE('txtTest').innerText = doSplitup(str, 7, 31);
+}
+
+//Ensure no words are longer than mxwl, and no strings are longer than mxsl
+function doSplitup(str, mxwl, mxsl)
+{
+	str = str.substring(0, mxsl);
+	do {
+		longWord = false;	  
+		strParts = str.split(" ");
+		for (s=0;s<strParts.length;s++)
+		{
+			if (strParts[s].indexOf(" ") == -1 && strParts[s].length > mxwl)
+			{
+				sstr1 = strParts[s].substring(0, mxwl);
+				sstr2 = strParts[s].substring(mxwl);
+				strParts[s] = sstr1 + " " + sstr2;
+				longWord = true;
+			}
+		}
+		str = strParts.join();
+		str = str.replace(/,/g, " ");
+		str = str.replace(/  /g, " ");
+	  
+	} while (longWord);
+	return str;
+}
+
+</script>
+<input type="text" id="txtOne" name="txtOne" value="this gets complicated"/>&nbsp;
+<input type="button" onclick="splitup(getE('txtOne').value)" value="test"/><br/>
+
+<input type="text" id="txtTwo" name="txtTwo" value="this gets supercalifragilistic"/>&nbsp;
+<input type="button" onclick="splitup(getE('txtTwo').value)" value="test"/><br/>
+
+<input type="text" id="txtThree" name="txtThree" value="complicated gets hard"/>&nbsp;
+<input type="button" onclick="splitup(getE('txtThree').value)" value="test"/><br/>
+
+<input type="text" id="txtFour" name="txtFour" value="this one is easy"/>&nbsp;
+<input type="button" onclick="splitup(getE('txtFour').value)" value="test"/><br/>
+
+<input type="text" id="txtFive" name="txtFive" value="supercalifragilistic is easy"/>&nbsp;
+<input type="button" onclick="splitup(getE('txtFive').value)" value="test"/><br/>
+
+<p>
+<textarea id="txtTest" name="txtTest" style="width: 30px">
+test
+</textarea>
+</p>
