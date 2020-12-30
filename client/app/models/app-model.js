@@ -11,6 +11,9 @@ var AppModel = function() {
     //Define your default scene (needed for settings management)
     this.DefaultScene = "main";
 
+    //Define your app-wide, non-persisted settings here
+    this.UpdateCheckDone = false;
+
     //Define your app preferences (to be saved by OS)
     this.AppSettingsCurrent = null;
     this.AppSettingsDefaults = {
