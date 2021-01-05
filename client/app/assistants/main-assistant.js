@@ -100,21 +100,21 @@ MainAssistant.prototype.activate = function(event) {
     metubeModel.CustomClientAPIKey = appModel.AppSettingsCurrent["ClientAPIKey"];
 
     //find out what kind of device this is
-    if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3)
-        this.DeviceType = "Touchpad";
-    else {
-        if (window.screen.width == 800 || window.screen.height == 800)
-            this.DeviceType = "Pre3";
-        else
-            this.DeviceType = "Tiny";
-    }
-    if (this.DeviceType == "Touchpad")
+    if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3) {
+        this.DeviceType = "TouchPad";
         Mojo.Log.info("Device detected as TouchPad");
-    if (this.DeviceType == "Pre3")
-        Mojo.Log.info("Device detected as Pre3");
-    else if (this.DeviceType == "Tiny")
-        Mojo.Log.warn("Device detected as Pre2 or smaller");
-
+    } else {
+        if (window.screen.width == 800 || window.screen.height == 800) {
+            this.DeviceType = "Pre3";
+            Mojo.Log.info("Device detected as Pre3");
+        } else if ((window.screen.width == 480 || window.screen.height == 480) && (window.screen.width == 320 || window.screen.height == 320)) {
+            this.DeviceType = "Pre";
+            Mojo.Log.warn("Device detected as Pre or Pre2");
+        } else {
+            this.DeviceType = "Tiny";
+            Mojo.Log.warn("Device detected as Pixi or Veer");
+        }
+    }
     //Get ready for input!
     $("txtYoutubeURL").focus();
 };
@@ -293,20 +293,45 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     thisWidgetSetup.model.items = []; //remove the previous list
     for (var i = 0; i < results.length; i++) {
         var useName = this.decodeEntities(results[i].snippet.title);
-        if (this.DeviceType == "Touchpad")
-            thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "20px", imageWidth: "178px", titleMargin: "10em", videoName: useName, thumbnail: results[i].snippet.thumbnails.medium.url, selectedState: false });
-        else {
-            //Tiny devices with old OSes don't handle word wrapping well.
+        if (this.DeviceType == "TouchPad") {
+            thisWidgetSetup.model.items.push({
+                youtubeId: results[i].id.videoId,
+                topMargin: "20px",
+                imageWidth: "178px",
+                titleMargin: "10em",
+                videoName: useName,
+                thumbnail: results[i].snippet.thumbnails["medium"].url,
+                selectedState: false
+            });
+        } else {
+            Mojo.Log.info("in phones");
             if (this.DeviceType == "Pre3") {
-                useName = this.forceWordWrap(useName, 11, 34);
-                thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "4px", imageWidth: "120px", titleMargin: "148px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+                useName = this.forceWordWrap(useName, 11, 34); //Tiny devices with old OSes don't handle word wrapping well.
+                thisWidgetSetup.model.items.push({
+                    youtubeId: results[i].id.videoId,
+                    topMargin: "4px",
+                    imageWidth: "120px",
+                    titleMargin: "148px",
+                    videoName: useName,
+                    thumbnail: results[i].snippet.thumbnails["default"].url,
+                    selectedState: false
+                });
             } else {
-                useName = this.forceWordWrap(useName, 9, 26);
-                thisWidgetSetup.model.items.push({ youtubeId: results[i].id.videoId, topMargin: "6px", imageWidth: "120px", titleMargin: "154px", videoName: useName, thumbnail: results[i].snippet.thumbnails.default.url, selectedState: false });
+                useName = this.forceWordWrap(useName, 10, 28);
+                if (this.DeviceType == "Tiny")
+                    useName = this.forceWordWrap(useName, 9, 26); //Tiny devices with old OSes don't handle word wrapping well.
+                thisWidgetSetup.model.items.push({
+                    youtubeId: results[i].id.videoId,
+                    topMargin: "6px",
+                    imageWidth: "120px",
+                    titleMargin: "154px",
+                    videoName: useName,
+                    thumbnail: results[i].snippet.thumbnails["default"].url,
+                    selectedState: false
+                });
             }
         }
     }
-
     Mojo.Log.info("Updating search results widget with " + results.length + " results!");
     $("showResultsList").style.display = "block";
     this.controller.modelChanged(thisWidgetSetup.model);
