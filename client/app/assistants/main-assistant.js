@@ -98,6 +98,8 @@ MainAssistant.prototype.activate = function(event) {
     metubeModel.CustomGoogleAPIKey = appModel.AppSettingsCurrent["GoogleAPIKey"];
     metubeModel.UseCustomClientAPIKey = appModel.AppSettingsCurrent["UseClientAPIKey"];
     metubeModel.CustomClientAPIKey = appModel.AppSettingsCurrent["ClientAPIKey"];
+    metubeModel.UseCustomEndpoint = appModel.AppSettingsCurrent["UseCustomEndpoint"];
+    metubeModel.CustomEndpointURL = appModel.AppSettingsCurrent["EndpointURL"];
 
     //find out what kind of device this is
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3) {

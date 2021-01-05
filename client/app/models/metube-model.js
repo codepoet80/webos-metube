@@ -8,10 +8,7 @@ MeTube Model - Mojo
 */
 
 var MetubeModel = function() {
-    this.SearchURLBase = "http://metube.webosarchive.com/search.php";
-    this.AddURLBase = "http://metube.webosarchive.com/add.php";
-    this.ListURLBase = "http://metube.webosarchive.com/list.php";
-    this.PlaybackURLBase = "http://metube.webosarchive.com/play.php";
+    this.urlBase = "http://metube.webosarchive.com";
 };
 
 //Properties
@@ -19,17 +16,33 @@ MetubeModel.prototype.UseCustomGoogleAPIKey = false;
 MetubeModel.prototype.CustomGoogleAPIKey = "";
 MetubeModel.prototype.UseCustomClientAPIKey = false;
 MetubeModel.prototype.CustomClientAPIKey = "";
+MetubeModel.prototype.UseCustomEndpoint = false;
+MetubeModel.prototype.CustomEndpointURL = "";
+
+MetubeModel.prototype.buildURL = function(actionType) {
+    var urlBase = this.urlBase;
+    if (this.UseCustomEndpoint == true && this.CustomEndpointURL != "") {
+        urlBase = this.CustomEndpointURL;
+    }
+    //Make sure we don't end up with double slashes in the built URL if there's a custom endpoint
+    var urlTest = urlBase.split("://");
+    if (urlTest[urlTest.length - 1].indexOf("/") != -1) {
+        urlBase = urlBase.substring(0, urlBase.length - 1);
+    }
+    var path = urlBase + "/" + actionType + ".php";
+    return path;
+}
 
 //HTTP request for add file
 MetubeModel.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
 
-    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.AddURLBase);
+    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.buildURL("add"));
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("POST", this.AddURLBase);
+    xmlhttp.open("POST", this.buildURL("add"));
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send(this.encodeRequest(youtubeURL));
     xmlhttp.onreadystatechange = function() {
@@ -47,7 +60,7 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", this.ListURLBase);
+    xmlhttp.open("GET", this.buildURL("list"));
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
@@ -60,12 +73,12 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
 
 //HTTP request for search
 MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults, callback) {
-    Mojo.Log.info("Getting search results: " + this.SearchURLBase);
+    Mojo.Log.info("Getting search results from: " + this.buildURL("search"));
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
-    var searchURL = this.SearchURLBase + "?part=snippet&maxResults=" + numResults + "&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
+    var searchURL = this.buildURL("search") + "?part=snippet&maxResults=" + numResults + "&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
     //Mojo.Log.info("Asking server to search with URL: " + searchURL);
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);
@@ -83,7 +96,7 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults,
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
     videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);
-    videoURL = this.PlaybackURLBase + "?video=" + videoURL;
+    videoURL = this.buildURL("play") + "?video=" + videoURL;
     Mojo.Log.info("Actual video request is: " + videoURL);
     return videoURL;
 }

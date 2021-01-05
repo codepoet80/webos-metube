@@ -63,12 +63,23 @@ PreferencesAssistant.prototype.setup = function() {
             disabled: false
         }
     );
+    this.controller.setupWidget("toggleCustomEndPoint",
+        this.attributes = {
+            trueValue: true,
+            falseValue: false
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["UseCustomEndpoint"],
+            disabled: false
+        }
+    );
     //API Text fields
     this.controller.setupWidget("txtGoogleAPI",
         this.attributes = {
             hintText: $L("Your Google API Key"),
             multiline: false,
             enterSubmits: false,
+            autoReplace: false,
         },
         this.model = {
             value: appModel.AppSettingsCurrent["GoogleAPIKey"],
@@ -80,12 +91,27 @@ PreferencesAssistant.prototype.setup = function() {
             hintText: $L("Your MeTube API Key"),
             multiline: false,
             enterSubmits: false,
+            autoReplace: false,
         },
         this.model = {
             value: appModel.AppSettingsCurrent["ClientAPIKey"],
             disabled: !appModel.AppSettingsCurrent["UseClientAPIKey"]
         }
     );
+    this.controller.setupWidget("txtEndpointURL",
+        this.attributes = {
+            hintText: $L("http://your-metube-server.com"),
+            multiline: false,
+            enterSubmits: false,
+            autoReplace: false,
+            textCase: Mojo.Widget.steModeLowerCase
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["EndpointURL"],
+            disabled: !appModel.AppSettingsCurrent["EndpointURL"]
+        }
+    );
+
     //OK Button
     this.controller.setupWidget("btnOK", { type: Mojo.Widget.activityButton }, { label: "OK", disabled: false });
     //Menu
@@ -105,8 +131,10 @@ PreferencesAssistant.prototype.setup = function() {
     Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("txtEndpointURL"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("toggleCustomEndPoint"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("btnOK"), Mojo.Event.tap, this.okClick.bind(this));
 };
 
@@ -125,13 +153,18 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
         this.controller.modelChanged(thisWidgetSetup.model);
         if (event.value)
             this.controller.get('txtGoogleAPI').mojo.focus();
-    }
-    if (event.srcElement.id == "toggleClientAPI") {
+    } else if (event.srcElement.id == "toggleClientAPI") {
         var thisWidgetSetup = this.controller.getWidgetSetup("txtClientAPI");
         thisWidgetSetup.model.disabled = !event.value;
         this.controller.modelChanged(thisWidgetSetup.model);
         if (event.value)
             this.controller.get('txtClientAPI').mojo.focus();
+    } else if (event.srcElement.id == "toggleCustomEndPoint") {
+        var thisWidgetSetup = this.controller.getWidgetSetup("txtEndpointURL");
+        thisWidgetSetup.model.disabled = !event.value;
+        this.controller.modelChanged(thisWidgetSetup.model);
+        if (event.value)
+            this.controller.get('txtEndpointURL').mojo.focus();
     }
 
     //We stashed the preference name in the title of the HTML element, so we don't have to use a case statement
