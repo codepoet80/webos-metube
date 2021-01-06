@@ -1,5 +1,5 @@
 # webos-metube
 
-Requires webOS 2.2. Tested on Veer and Touchpad hardware, Pre2 and Pre3 emulators.
+Requires webOS 2.2. Tested on Pre2, Veer and Touchpad hardware, Pre3 emulator.
 
 Learn more about this app at: [http://metube.webosarchive.com](http://metube.webosarchive.com)
