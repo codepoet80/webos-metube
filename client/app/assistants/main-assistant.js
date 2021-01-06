@@ -298,6 +298,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     thisWidgetSetup.model.items = []; //remove the previous list
     for (var i = 0; i < results.length; i++) {
         var useName = this.decodeEntities(results[i].snippet.title);
+
         if (this.DeviceType == "TouchPad") {
             thisWidgetSetup.model.items.push({
                 youtubeId: results[i].id.videoId,
@@ -310,7 +311,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             });
         } else {
             if (this.DeviceType == "Pre3") {
-                useName = this.forceWordWrap(useName, 11, 34); //Tiny devices with old OSes don't handle word wrapping well.
+                useName = this.cleanupString(useName, 11, 34);
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
                     topMargin: "4px",
@@ -321,7 +322,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                     selectedState: false
                 });
             } else {
-                useName = this.forceWordWrap(useName, 9, 26); //Tiny devices with old OSes don't handle word wrapping well.
+                useName = this.cleanupString(useName, 9, 26);
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
                     topMargin: "6px",
@@ -339,25 +340,11 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     this.controller.modelChanged(thisWidgetSetup.model);
 }
 
-//Split up words so they wrap
-MainAssistant.prototype.forceWordWrap = function(str, mxwl, mxsl) {
+//Try to make strings easier on tiny devices
+MainAssistant.prototype.cleanupString = function(str, mxwl, mxsl) {
     str = str.substring(0, mxsl);
-    do {
-        longWord = false;
-        strParts = str.split(" ");
-        for (s = 0; s < strParts.length; s++) {
-            if (strParts[s].indexOf(" ") == -1 && strParts[s].length > mxwl) {
-                sstr1 = strParts[s].substring(0, mxwl);
-                sstr2 = strParts[s].substring(mxwl);
-                strParts[s] = sstr1 + " " + sstr2;
-                longWord = true;
-            }
-        }
-        str = strParts.join();
-        str = str.replace(/,/g, " ");
-        str = str.replace(/  /g, " ");
-
-    } while (longWord);
+    str = str.replace(/\s+/g, ' ').trim();
+    str = str.replace(/[^a-z0-9\s]/gi, '');
     return str;
 }
 
@@ -510,8 +497,6 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
 MainAssistant.prototype.downloadVideoFile = function(videoURL) {
 
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
-
-    Mojo.Log.warn("Downloading file: " + videoURL);
     //Ask webOS to download the video from the URL
     this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
         method: 'download',
