@@ -42,6 +42,27 @@ PreferencesAssistant.prototype.setup = function() {
             disabled: false
         }
     );
+    //Playback strategy result picker
+    var strategyDefault = appModel.AppSettingsCurrent["PlaybackStrategy"];
+    var strategyDisabled = false;
+    if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2) {
+        //Download is the only strategy that works on Pre and other older devices, so don't let the user toggle
+        strategyDefault = "download";
+        strategyDisabled = true;
+    }
+    this.controller.setupWidget("listStrategy",
+        this.attributes = {
+            label: $L("Play Strategy"),
+            choices: [
+                { label: "Stream", value: "stream" },
+                { label: "Download", value: "download" }
+            ]
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["PlaybackStrategy"],
+            disabled: strategyDisabled
+        }
+    );
     //API Toggles
     this.controller.setupWidget("toggleGoogleAPI",
         this.attributes = {
@@ -129,6 +150,7 @@ PreferencesAssistant.prototype.setup = function() {
 
     Mojo.Event.listen(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("listStrategy"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtEndpointURL"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
@@ -141,8 +163,16 @@ PreferencesAssistant.prototype.setup = function() {
 PreferencesAssistant.prototype.activate = function(event) {
     /* put in event handlers here that should only be in effect when this scene is active. For
        example, key handlers that are observing the document */
-
+    this.showBetaFeatures();
 };
+
+PreferencesAssistant.prototype.showBetaFeatures = function() {
+    document.getElementById("divRowStrategyPicker").style.display = "none";
+    if (appModel.AppSettingsCurrent["UseClientAPIKey"] == true && (appModel.AppSettingsCurrent["ClientAPIKey"] == atob("WDRrazJDM3pZZko2UHI="))) {
+        Mojo.Log.warn("Beta user mode: ON!");
+        document.getElementById("divRowStrategyPicker").style.display = "block";
+    }
+}
 
 PreferencesAssistant.prototype.handleValueChange = function(event) {
 
@@ -171,6 +201,8 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
     Mojo.Log.info(event.srcElement.title + " now: " + event.value);
     appModel.AppSettingsCurrent[event.srcElement.title] = event.value;
 
+    //Show/hide beta features
+    this.showBetaFeatures();
 };
 
 //Handle menu and button bar commands

@@ -24,7 +24,8 @@ var AppModel = function() {
         ClientAPIKey: "",
         EndpointURL: "",
         SearchResultMax: 25,
-        TimeoutMax: 15
+        TimeoutMax: 15,
+        PlaybackStrategy: "stream"
     };
 }
 

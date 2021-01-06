@@ -18,19 +18,19 @@ MainAssistant.prototype.setup = function() {
        Changing this value on the server allows longer videos, but increases the load on the server, and may have bad interactions with the clean-up time */
     this.FileCheckInt;
     this.SearchValue = "";
+    this.DownloadFirst = false;
     this.FileList = [];
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     //TODO: We could be even more resilient if we saved this in a preference.
 
-    //Submit button
-    this.controller.setupWidget("btnGetVideo",
-        this.attributes = {},
-        this.model = {
-            label: "Submit",
-            disabled: false
-        }
-    );
-    //Loading spinner
+    //Submit button - with global members for easy toggling later
+    this.submitBtnAttrs = {};
+    this.submitBtnModel = {
+        label: "Submit",
+        disabled: false
+    };
+    this.controller.setupWidget("btnGetVideo", this.submitBtnAttrs, this.submitBtnModel);
+    //Loading spinner - with global members for easy toggling later
     this.spinnerAttrs = {
         spinnerSize: Mojo.Widget.spinnerLarge
     };
@@ -117,6 +117,11 @@ MainAssistant.prototype.activate = function(event) {
             Mojo.Log.warn("Device detected as Pixi or Veer");
         }
     }
+    //figure out how to play
+    this.DownloadFirst = false;
+    if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2 || appModel.AppSettingsCurrent["PlaybackStrategy"] == "download") {
+        this.DownloadFirst = true;
+    }
     //Get ready for input!
     $("txtYoutubeURL").focus();
 };
@@ -138,9 +143,8 @@ MainAssistant.prototype.handleCommand = function(event) {
 
 //Handle mojo button taps
 MainAssistant.prototype.handleClick = function(event) {
-    //start spinner
-    this.spinnerModel.spinning = true;
-    this.controller.modelChanged(this.spinnerModel);
+
+    this.disableUI();
 
     //figure out what was requested
     var stageController = Mojo.Controller.getAppController().getActiveStageController();
@@ -173,9 +177,9 @@ MainAssistant.prototype.handleClearTap = function() {
     //Hide List
     $("showResultsList").style.display = "none";
 
-    //Stop spinner
-    this.spinnerModel.spinning = false;
-    this.controller.modelChanged(this.spinnerModel);
+    this.enableUI();
+
+    //TODO: maybe we should try to cancel any launches or downloads too
 
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
@@ -254,7 +258,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     } else {
         //Play the video
         Mojo.Log.info("About to play video from historical path: " + historyPath);
-        this.playPreparedVideo(historyPath);
+        this.playPreparedVideo(historyPath, true);
     }
 }
 
@@ -282,9 +286,8 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
             Mojo.Log.error("No usable response from server while searching YouTube: " + response);
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity.");
         }
-        //stop spinner
-        this.spinnerModel.spinning = false;
-        this.controller.modelChanged(this.spinnerModel);
+
+        this.enableUI();
     }.bind(this));
 }
 
@@ -306,7 +309,6 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                 selectedState: false
             });
         } else {
-            Mojo.Log.info("in phones");
             if (this.DeviceType == "Pre3") {
                 useName = this.forceWordWrap(useName, 11, 34); //Tiny devices with old OSes don't handle word wrapping well.
                 thisWidgetSetup.model.items.push({
@@ -319,9 +321,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                     selectedState: false
                 });
             } else {
-                useName = this.forceWordWrap(useName, 10, 28);
-                if (this.DeviceType == "Tiny")
-                    useName = this.forceWordWrap(useName, 9, 26); //Tiny devices with old OSes don't handle word wrapping well.
+                useName = this.forceWordWrap(useName, 9, 26); //Tiny devices with old OSes don't handle word wrapping well.
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
                     topMargin: "6px",
@@ -392,18 +392,12 @@ MainAssistant.prototype.checkForNewFiles = function() {
                             this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
 
                             //Play the video
-                            this.playPreparedVideo(videoPath);
-
-                            //stop spinner
-                            this.spinnerModel.spinning = false;
-                            this.controller.modelChanged(this.spinnerModel);
+                            this.playPreparedVideo(videoPath, true);
                         } else {
                             Mojo.Log.error("Unable to find a video file to play!");
                             clearInterval(this.FileCheckInt);
 
-                            //stop spinner
-                            this.spinnerModel.spinning = false;
-                            this.controller.modelChanged(this.spinnerModel);
+                            this.enableUI();
                         }
                     }
                     this.timeOutCount++;
@@ -412,9 +406,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
                     Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
                     clearInterval(this.FileCheckInt);
 
-                    //stop spinner
-                    this.spinnerModel.spinning = false;
-                    this.controller.modelChanged(this.spinnerModel);
+                    this.enableUI();
                 }
             }
         } else {
@@ -422,9 +414,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity.");
             clearInterval(this.FileCheckInt);
 
-            //stop spinner
-            this.spinnerModel.spinning = false;
-            this.controller.modelChanged(this.spinnerModel);
+            this.enableUI();
         }
     }.bind(this));
 }
@@ -459,17 +449,13 @@ MainAssistant.prototype.addFile = function(theFile) {
                 //Start checking for new files on server
                 this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
             } else {
-                //stop spinner
-                this.spinnerModel.spinning = false;
-                this.controller.modelChanged(this.spinnerModel);
+                this.enableUI();
 
                 Mojo.Log.error("Server Error while adding new file request" + responseObj.msg);
                 Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
             }
         } else {
-            //stop spinner
-            this.spinnerModel.spinning = false;
-            this.controller.modelChanged(this.spinnerModel);
+            this.enableUI();
 
             Mojo.Log.error("No usable response from server while adding new file request: " + response);
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity.");
@@ -477,10 +463,26 @@ MainAssistant.prototype.addFile = function(theFile) {
     }.bind(this));
 }
 
-//Actually play the video we requested 
+//Figure out how to play the video we requested 
 MainAssistant.prototype.playPreparedVideo = function(videoURL) {
+    if (this.DownloadFirst) {
+        if (appModel.AppSettingsCurrent["UseClientAPIKey"] == true && appModel.AppSettingsCurrent["ClientAPIKey"] == atob("WDRrazJDM3pZZko2UHI="))
+            this.downloadVideoFile(videoURL);
+        else {
+            Mojo.Additions.ShowDialogBox("Playback Not Available", "Unsupported Playback strategy for this device. Contact the developer to become a beta tester!");
+        }
+    } else {
+        Mojo.Log.info("Playing video with strategy: direct stream");
+        this.startVideoPlayer(videoURL, true);
+    }
+}
 
-    videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
+//Launch the webOS Video Player app with the video to play
+MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
+    if (isStream) //this is a streaming request
+        videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
+    //otherwise its a file path
+    Mojo.Log.warn("Using video target: " + videoURL);
 
     //Ask webOS to launch the video player with the new url
     this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
@@ -494,19 +496,71 @@ MainAssistant.prototype.playPreparedVideo = function(videoURL) {
         onSuccess: function(response) {
             Mojo.Log.info("Video player launch success", JSON.stringify(response));
             $("txtYoutubeURL").focus();
-            //stop spinner
-            this.spinnerModel.spinning = false;
-            this.controller.modelChanged(this.spinnerModel);
+            this.enableUI();
         }.bind(this),
         onFailure: function(response) {
-            Mojo.Log.error("Video player launch Failure, " + videoURL + ":",
-                JSON.stringify(response), response.errorText);
-            //stop spinner
-            this.spinnerModel.spinning = false;
-            this.controller.modelChanged(this.spinnerModel);
+            Mojo.Log.error("Video player launch Failure, " + videoURL + ":", JSON.stringify(response), response.errorText);
+            this.enableUI();
         }.bind(this)
     });
     return true;
+}
+
+//Actually play the video we requested 
+MainAssistant.prototype.downloadVideoFile = function(videoURL) {
+
+    videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
+
+    Mojo.Log.warn("Downloading file: " + videoURL);
+    //Ask webOS to download the video from the URL
+    this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
+        method: 'download',
+        parameters: {
+            target: encodeURI(videoURL),
+            mime: "video/mp4",
+            targetDir: "/media/internal/downloads/",
+            targetFilename: ".metubevideo.mp4",
+            keepFilenameOnRedirect: false,
+            subscribe: true
+        },
+        onSuccess: function(response) {
+            Mojo.Log.info("Video download success", JSON.stringify(response));
+            if (response.completed && (response.completionStatusCode == 200 || response.amountReceived == response.amountTotal)) {
+                $("txtYoutubeURL").focus();
+                this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
+            } else {
+                //(re)start spinner
+                //this.spinnerModel.spinning = true;
+                //this.controller.modelChanged(this.spinnerModel);
+                //TODO: figure out how to put progress here
+                Mojo.Log.info("Download status: " + response.amountReceived + "/" + response.amountTotal);
+            }
+        }.bind(this),
+        onFailure: function(response) {
+            Mojo.Log.error("Video download Failure, " + videoURL + ":", JSON.stringify(response), response.errorText);
+            this.enableUI();
+        }.bind(this)
+    });
+}
+
+MainAssistant.prototype.disableUI = function() {
+    //start spinner
+    this.spinnerModel.spinning = true;
+    this.controller.modelChanged(this.spinnerModel);
+
+    //disable submit button
+    this.submitBtnModel.disabled = true;
+    this.controller.modelChanged(this.submitBtnModel);
+}
+
+MainAssistant.prototype.enableUI = function() {
+    //stop spinner
+    this.spinnerModel.spinning = false;
+    this.controller.modelChanged(this.spinnerModel);
+
+    //enable submit button
+    this.submitBtnModel.disabled = false;
+    this.controller.modelChanged(this.submitBtnModel);
 }
 
 MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {
