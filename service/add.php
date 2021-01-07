@@ -34,7 +34,7 @@ if (strpos($request, $server_id) !== false)
 	$request = base64_decode($request);
 
 	//prepare outbound request
-	$request = "{\"url\":\"" . $request . "\", \"quality\":\"best\"}";
+	$request = "{\"url\":\"" . $request . "\", \"quality\":\"custom:" . urlencode("bestvideo[ext=mp4]+bestaudio[ext=aac]/best[ext=mp4]/best") . "\"}";
 
 	//make outbound request to metube
 	$curl = curl_init();
