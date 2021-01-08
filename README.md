@@ -1,4 +1,4 @@
-# webos-metube
+# MeTube client app for webOS
 
 Requires webOS 2.2. Tested on Pre2, Veer and Touchpad hardware, Pre3 emulator.
 
