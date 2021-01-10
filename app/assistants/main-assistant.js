@@ -98,6 +98,8 @@ MainAssistant.prototype.activate = function(event) {
     metubeModel.CustomGoogleAPIKey = appModel.AppSettingsCurrent["GoogleAPIKey"];
     metubeModel.UseCustomClientAPIKey = appModel.AppSettingsCurrent["UseClientAPIKey"];
     metubeModel.CustomClientAPIKey = appModel.AppSettingsCurrent["ClientAPIKey"];
+    metubeModel.UseCustomServerKey = appModel.AppSettingsCurrent["UseServerKey"];
+    metubeModel.CustomServerKey = appModel.AppSettingsCurrent["ServerKey"];
     metubeModel.UseCustomEndpoint = appModel.AppSettingsCurrent["UseCustomEndpoint"];
     metubeModel.CustomEndpointURL = appModel.AppSettingsCurrent["EndpointURL"];
 
@@ -165,7 +167,12 @@ MainAssistant.prototype.handleClick = function(event) {
 }
 
 //Handle non-mojo button taps
+this.cancelDownload = false;
 MainAssistant.prototype.handleClearTap = function() {
+
+    //Tell any downloads to cancel
+    this.cancelDownload = true;
+
     //Clear the text box
     $("txtYoutubeURL").value = "";
 
@@ -480,22 +487,25 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
         onSuccess: function(response) {
             Mojo.Log.info("Video player launch success", JSON.stringify(response));
             $("txtYoutubeURL").focus();
-            this.enableUI();
         }.bind(this),
         onFailure: function(response) {
             Mojo.Log.error("Video player launch Failure, " + videoURL + ":", JSON.stringify(response), response.errorText);
-            this.enableUI();
         }.bind(this)
     });
+    this.enableUI();
     return true;
 }
 
 //Actually play the video we requested 
+this.downloader = null;
 MainAssistant.prototype.downloadVideoFile = function(videoURL) {
+
+    //Clear out previous cancels
+    this.cancelDownload = false;
 
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
     //Ask webOS to download the video from the URL
-    this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
+    this.downloader = this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
         method: 'download',
         parameters: {
             target: encodeURI(videoURL),
@@ -511,10 +521,20 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
                 $("txtYoutubeURL").focus();
                 this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
             } else {
-                var status = Math.round((response.amountReceived / response.amountTotal) * 100);
-                if (status >= 0)
-                    this.disableUI(status + " %");
-                Mojo.Log.info("Download status: " + response.amountReceived + "/" + response.amountTotal);
+                if (this.cancelDownload) {
+                    this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
+                        method: 'pauseDownload',
+                        parameters: { "ticket": response.ticket },
+                        onSuccess: function(e) { Mojo.Log.info("Cancelled download"); },
+                        onFailure: function(e) { Mojo.Log.info("Cancelled download"); }
+                    });
+                    this.enableUI();
+                } else {
+                    var status = Math.round((response.amountReceived / response.amountTotal) * 100);
+                    if (status >= 0)
+                        this.disableUI(status + " %");
+                    Mojo.Log.info("Download status: " + response.amountReceived + "/" + response.amountTotal);
+                }
             }
         }.bind(this),
         onFailure: function(response) {

@@ -16,6 +16,8 @@ MetubeModel.prototype.UseCustomGoogleAPIKey = false;
 MetubeModel.prototype.CustomGoogleAPIKey = "";
 MetubeModel.prototype.UseCustomClientAPIKey = false;
 MetubeModel.prototype.CustomClientAPIKey = "";
+MetubeModel.prototype.UseCustomServerKey = false;
+MetubeModel.prototype.CustomServerKey = "";
 MetubeModel.prototype.UseCustomEndpoint = false;
 MetubeModel.prototype.CustomEndpointURL = "";
 
@@ -95,6 +97,7 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults,
 
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
+    Mojo.Log.info("using client key: " + this.getCurrentClientKey());
     videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);
     videoURL = this.buildURL("play") + "?video=" + videoURL;
     Mojo.Log.info("Actual video request is: " + videoURL);
@@ -112,7 +115,7 @@ MetubeModel.prototype.getCurrentGoogleKey = function() {
 
 MetubeModel.prototype.getCurrentClientKey = function() {
     var retVal = atob(appKeys['clientKey']);
-    if (this.UseCustomClientAPIKey && this.CustomClientAPIKey != "") {
+    if (this.UseCustomClientAPIKey) {
         retVal = this.CustomClientAPIKey;
         Mojo.Log.info("Using custom API key: " + retVal);
     }
@@ -121,11 +124,13 @@ MetubeModel.prototype.getCurrentClientKey = function() {
 
 MetubeModel.prototype.encodeRequest = function(request) {
     request = btoa(request);
-    var strLen = request.length;
-    var randPos = Math.random() * (strLen - 1 - 0) + 0;
-    var str1 = request.substring(0, randPos);
-    var str2 = request.substring(randPos);
-    request = str1 + atob(appKeys["serverId"]) + str2;
+    if (!this.UseCustomServerKey == true || (this.UseCustomServerKey == true && this.CustomServerKey != "")) {
+        var strLen = request.length;
+        var randPos = Math.random() * (strLen - 1 - 0) + 0;
+        var str1 = request.substring(0, randPos);
+        var str2 = request.substring(randPos);
+        request = str1 + atob(appKeys["serverId"]) + str2;
+    }
     return request;
 }
 
@@ -134,6 +139,9 @@ MetubeModel.prototype.decodeResponse = function(response) {
         response = response.replace(atob(appKeys["serverId"]), "");
         response = atob(response);
         return response;
+    } else {
+        if (this.UseCustomServerKey == true && this.CustomServerKey == "")
+            return atob(response);
     }
     Mojo.Log.error("Bad response from server: unexpected encoding.");
 }

@@ -84,6 +84,16 @@ PreferencesAssistant.prototype.setup = function() {
             disabled: false
         }
     );
+    this.controller.setupWidget("toggleServerKey",
+        this.attributes = {
+            trueValue: true,
+            falseValue: false
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["UseServerKey"],
+            disabled: false
+        }
+    );
     this.controller.setupWidget("toggleCustomEndPoint",
         this.attributes = {
             trueValue: true,
@@ -117,6 +127,18 @@ PreferencesAssistant.prototype.setup = function() {
         this.model = {
             value: appModel.AppSettingsCurrent["ClientAPIKey"],
             disabled: !appModel.AppSettingsCurrent["UseClientAPIKey"]
+        }
+    );
+    this.controller.setupWidget("txtServerKey",
+        this.attributes = {
+            hintText: $L("Your MeTube Server Key"),
+            multiline: false,
+            enterSubmits: false,
+            autoReplace: false,
+        },
+        this.model = {
+            value: appModel.AppSettingsCurrent["ServerKey"],
+            disabled: !appModel.AppSettingsCurrent["UseServerKey"]
         }
     );
     this.controller.setupWidget("txtEndpointURL",
@@ -156,6 +178,7 @@ PreferencesAssistant.prototype.setup = function() {
     Mojo.Event.listen(this.controller.get("txtEndpointURL"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("toggleServerKey"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleCustomEndPoint"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("btnOK"), Mojo.Event.tap, this.okClick.bind(this));
 };
@@ -189,6 +212,12 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
         this.controller.modelChanged(thisWidgetSetup.model);
         if (event.value)
             this.controller.get('txtClientAPI').mojo.focus();
+    } else if (event.srcElement.id == "toggleServerKey") {
+        var thisWidgetSetup = this.controller.getWidgetSetup("txtServerKey");
+        thisWidgetSetup.model.disabled = !event.value;
+        this.controller.modelChanged(thisWidgetSetup.model);
+        if (event.value)
+            this.controller.get('txtServerKey').mojo.focus();
     } else if (event.srcElement.id == "toggleCustomEndPoint") {
         var thisWidgetSetup = this.controller.getWidgetSetup("txtEndpointURL");
         thisWidgetSetup.model.disabled = !event.value;
@@ -233,6 +262,7 @@ PreferencesAssistant.prototype.deactivate = function(event) {
     Mojo.Event.stopListening(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("toggleGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("toggleClientAPI"), Mojo.Event.propertyChange, this.handleValueChange);
+    Mojo.Event.stopListening(this.controller.get("toggleServerKey"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("btnOK"), Mojo.Event.tap, this.okClick.bind(this));
 
     appModel.SaveSettings();

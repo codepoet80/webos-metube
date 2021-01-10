@@ -19,9 +19,11 @@ var AppModel = function() {
     this.AppSettingsDefaults = {
         UseGoogleAPIKey: false,
         UseClientAPIKey: false,
+        UseServerKey: false,
         UseCustomEndpoint: false,
         GoogleAPIKey: "",
         ClientAPIKey: "",
+        ServerKey: "",
         EndpointURL: "",
         SearchResultMax: 25,
         TimeoutMax: 15,
