@@ -453,11 +453,8 @@ MainAssistant.prototype.addFile = function(theFile) {
 //Figure out how to play the video we requested 
 MainAssistant.prototype.playPreparedVideo = function(videoURL) {
     if (this.DownloadFirst) {
-        if (appModel.AppSettingsCurrent["UseClientAPIKey"] == true && appModel.AppSettingsCurrent["ClientAPIKey"] == atob("WDRrazJDM3pZZko2UHI="))
-            this.downloadVideoFile(videoURL);
-        else {
-            Mojo.Additions.ShowDialogBox("Playback Not Available", "Unsupported Playback strategy for this device. Contact the developer to become a beta tester!");
-        }
+        Mojo.Log.info("Playing video with strategy: download first");
+        this.downloadVideoFile(videoURL);
     } else {
         Mojo.Log.info("Playing video with strategy: direct stream");
         this.startVideoPlayer(videoURL, true);
@@ -514,10 +511,9 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
                 $("txtYoutubeURL").focus();
                 this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
             } else {
-                //(re)start spinner
-                //this.spinnerModel.spinning = true;
-                //this.controller.modelChanged(this.spinnerModel);
-                //TODO: figure out how to put progress here
+                var status = Math.round((response.amountReceived / response.amountTotal) * 100);
+                if (status >= 0)
+                    this.disableUI(status + " %");
                 Mojo.Log.info("Download status: " + response.amountReceived + "/" + response.amountTotal);
             }
         }.bind(this),
@@ -528,20 +524,35 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     });
 }
 
-MainAssistant.prototype.disableUI = function() {
+MainAssistant.prototype.disableUI = function(statusValue) {
     //start spinner
-    this.spinnerModel.spinning = true;
-    this.controller.modelChanged(this.spinnerModel);
+    if (!this.spinnerModel.spinning) {
+        this.spinnerModel.spinning = true;
+        this.controller.modelChanged(this.spinnerModel);
+    }
+
+    if (statusValue && statusValue != "") {
+        $("divWorkingStatus").style.display = "block";
+        $("divStatusValue").innerHTML = statusValue;
+    } else {
+        $("divWorkingStatus").style.display = "none";
+    }
 
     //disable submit button
-    this.submitBtnModel.disabled = true;
-    this.controller.modelChanged(this.submitBtnModel);
+    if (!this.submitBtnModel.disabled) {
+        this.submitBtnModel.disabled = true;
+        this.controller.modelChanged(this.submitBtnModel);
+    }
 }
 
 MainAssistant.prototype.enableUI = function() {
     //stop spinner
     this.spinnerModel.spinning = false;
     this.controller.modelChanged(this.spinnerModel);
+
+    //hide status
+    $("divWorkingStatus").style.display = "none";
+    $("divStatusValue").innerHTML = "";
 
     //enable submit button
     this.submitBtnModel.disabled = false;

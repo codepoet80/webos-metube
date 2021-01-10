@@ -163,15 +163,15 @@ PreferencesAssistant.prototype.setup = function() {
 PreferencesAssistant.prototype.activate = function(event) {
     /* put in event handlers here that should only be in effect when this scene is active. For
        example, key handlers that are observing the document */
-    this.showBetaFeatures();
+    //this.showBetaFeatures();
 };
 
 PreferencesAssistant.prototype.showBetaFeatures = function() {
-    document.getElementById("divRowStrategyPicker").style.display = "none";
+    /*document.getElementById("divRowStrategyPicker").style.display = "none";
     if (appModel.AppSettingsCurrent["UseClientAPIKey"] == true && (appModel.AppSettingsCurrent["ClientAPIKey"] == atob("WDRrazJDM3pZZko2UHI="))) {
         Mojo.Log.warn("Beta user mode: ON!");
         document.getElementById("divRowStrategyPicker").style.display = "block";
-    }
+    }*/
 }
 
 PreferencesAssistant.prototype.handleValueChange = function(event) {
