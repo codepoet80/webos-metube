@@ -27,7 +27,8 @@ var AppModel = function() {
         EndpointURL: "",
         SearchResultMax: 25,
         TimeoutMax: 15,
-        PlaybackStrategy: "stream"
+        PlaybackStrategy: "stream",
+        FirstRun: true
     };
 }
 

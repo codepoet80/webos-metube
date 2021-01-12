@@ -102,6 +102,11 @@ MainAssistant.prototype.activate = function(event) {
     metubeModel.CustomServerKey = appModel.AppSettingsCurrent["ServerKey"];
     metubeModel.UseCustomEndpoint = appModel.AppSettingsCurrent["UseCustomEndpoint"];
     metubeModel.CustomEndpointURL = appModel.AppSettingsCurrent["EndpointURL"];
+    if (appModel.AppSettingsCurrent["FirstRun"]) {
+        appModel.AppSettingsCurrent["FirstRun"] = false;
+        appModel.SaveSettings();
+        Mojo.Additions.ShowDialogBox("Welcome to MeTube!", "webOS MeTube is a client for a MeTube service running on a remote server. You can use the community server for free, but be aware there is no expectation of performance or privacy. You can also use your own server if you want. If you experience crashes, try changing the playback strategy in Preferences (not available on webOS 1.x). Enjoy!")
+    }
 
     //find out what kind of device this is
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3) {
