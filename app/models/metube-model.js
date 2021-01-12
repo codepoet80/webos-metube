@@ -122,6 +122,15 @@ MetubeModel.prototype.getCurrentClientKey = function() {
     return retVal;
 }
 
+MetubeModel.prototype.getCurrentServerKey = function() {
+    var retVal = atob(appKeys['serverId']);
+    if (this.UseCustomServerKey) {
+        retVal = this.CustomServerKey;
+        Mojo.Log.info("Using custom Server key: " + retVal);
+    }
+    return retVal;
+}
+
 MetubeModel.prototype.encodeRequest = function(request) {
     request = btoa(request);
     if (!this.UseCustomServerKey == true || (this.UseCustomServerKey == true && this.CustomServerKey != "")) {
@@ -129,14 +138,14 @@ MetubeModel.prototype.encodeRequest = function(request) {
         var randPos = Math.random() * (strLen - 1 - 0) + 0;
         var str1 = request.substring(0, randPos);
         var str2 = request.substring(randPos);
-        request = str1 + atob(appKeys["serverId"]) + str2;
+        request = str1 + this.getCurrentServerKey() + str2;
     }
     return request;
 }
 
 MetubeModel.prototype.decodeResponse = function(response) {
-    if (response.indexOf(atob(appKeys["serverId"])) != -1) {
-        response = response.replace(atob(appKeys["serverId"]), "");
+    if (response.indexOf(this.getCurrentServerKey()) != -1) {
+        response = response.replace(this.getCurrentServerKey(), "");
         response = atob(response);
         return response;
     } else {

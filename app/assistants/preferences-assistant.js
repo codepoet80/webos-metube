@@ -59,7 +59,7 @@ PreferencesAssistant.prototype.setup = function() {
             ]
         },
         this.model = {
-            value: appModel.AppSettingsCurrent["PlaybackStrategy"],
+            value: strategyDefault,
             disabled: strategyDisabled
         }
     );
@@ -111,6 +111,7 @@ PreferencesAssistant.prototype.setup = function() {
             multiline: false,
             enterSubmits: false,
             autoReplace: false,
+            textCase: Mojo.Widget.steModeLowerCase
         },
         this.model = {
             value: appModel.AppSettingsCurrent["GoogleAPIKey"],
@@ -123,6 +124,7 @@ PreferencesAssistant.prototype.setup = function() {
             multiline: false,
             enterSubmits: false,
             autoReplace: false,
+            textCase: Mojo.Widget.steModeLowerCase
         },
         this.model = {
             value: appModel.AppSettingsCurrent["ClientAPIKey"],
@@ -135,6 +137,7 @@ PreferencesAssistant.prototype.setup = function() {
             multiline: false,
             enterSubmits: false,
             autoReplace: false,
+            textCase: Mojo.Widget.steModeLowerCase
         },
         this.model = {
             value: appModel.AppSettingsCurrent["ServerKey"],
@@ -169,12 +172,12 @@ PreferencesAssistant.prototype.setup = function() {
     this.controller.setupWidget(Mojo.Menu.appMenu, this.appMenuAttributes, this.appMenuModel);
 
     /* add event handlers to listen to events from widgets */
-
     Mojo.Event.listen(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listStrategy"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("txtServerKey"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtEndpointURL"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("toggleClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
@@ -190,11 +193,7 @@ PreferencesAssistant.prototype.activate = function(event) {
 };
 
 PreferencesAssistant.prototype.showBetaFeatures = function() {
-    /*document.getElementById("divRowStrategyPicker").style.display = "none";
-    if (appModel.AppSettingsCurrent["UseClientAPIKey"] == true && (appModel.AppSettingsCurrent["ClientAPIKey"] == atob("WDRrazJDM3pZZko2UHI="))) {
-        Mojo.Log.warn("Beta user mode: ON!");
-        document.getElementById("divRowStrategyPicker").style.display = "block";
-    }*/
+    //No beta features right now
 }
 
 PreferencesAssistant.prototype.handleValueChange = function(event) {
@@ -229,6 +228,7 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
     //We stashed the preference name in the title of the HTML element, so we don't have to use a case statement
     Mojo.Log.info(event.srcElement.title + " now: " + event.value);
     appModel.AppSettingsCurrent[event.srcElement.title] = event.value;
+    appModel.SaveSettings();
 
     //Show/hide beta features
     this.showBetaFeatures();
@@ -242,7 +242,7 @@ PreferencesAssistant.prototype.handleCommand = function(event) {
                 Mojo.Controller.stageController.popScene();
                 break;
             case 'do-resetSettings':
-                appModel.ResetSettings();
+                appModel.ResetSettings(appModel.AppSettingsDefaults);
                 break;
         }
     }
@@ -265,7 +265,6 @@ PreferencesAssistant.prototype.deactivate = function(event) {
     Mojo.Event.stopListening(this.controller.get("toggleServerKey"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("btnOK"), Mojo.Event.tap, this.okClick.bind(this));
 
-    appModel.SaveSettings();
 };
 
 PreferencesAssistant.prototype.cleanup = function(event) {

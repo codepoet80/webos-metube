@@ -57,9 +57,7 @@ AppModel.prototype.LoadSettings = function(safe) {
 }
 
 AppModel.prototype.loadCookieIntoCurrent = function(cookieSettings) {
-    for (var key in this.AppSettingsDefaults) {
-        this.AppSettingsCurrent[key] = cookieSettings[key] || this.AppSettingsDefaults[key];
-    }
+    this.AppSettingsCurrent = cookieSettings;
 }
 
 AppModel.prototype.checkSettingsValid = function(loadedSettings) {
@@ -89,7 +87,9 @@ AppModel.prototype.checkSettingsValid = function(loadedSettings) {
 
 AppModel.prototype.SaveSettings = function() {
     var settingsCookie = new Mojo.Model.Cookie("settings");
-    //Mojo.Log.info("Savinng settings as: " + JSON.stringify(appModel.AppSettingsCurrent));
+    Mojo.Log.info("Saving settings as: " + JSON.stringify(appModel.AppSettingsCurrent));
+    Mojo.Log.info("Default settings at Save time are: " + JSON.stringify(appModel.AppSettingsDefaults));
+
     settingsCookie.put(appModel.AppSettingsCurrent);
 }
 
