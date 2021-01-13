@@ -159,7 +159,7 @@ PreferencesAssistant.prototype.setup = function() {
     );
 
     //OK Button
-    this.controller.setupWidget("btnOK", { type: Mojo.Widget.activityButton }, { label: "OK", disabled: false });
+    this.controller.setupWidget("btnOK", { type: Mojo.Widget.activityButton }, { label: "Done", disabled: false });
     //Menu
     this.appMenuAttributes = { omitDefaultItems: true };
     this.appMenuModel = {

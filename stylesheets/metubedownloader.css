@@ -24,15 +24,6 @@
     word-wrap: break-word;
 }
 
-.search-box-off {
-    padding-left: 14px;
-    padding-right: 14px;
-    height: 31px;
-    background-color: darkgray;
-    border: 1px solid darkgray;
-    border-radius: 15px 0px 0px 15px;
-}
-
 .search-input {
     position: relative;
     width: 90%;
@@ -55,4 +46,11 @@
     top: 15px;
     right: 0px;
     margin-right: -5%;
+}
+
+.explanation-text {
+    margin-top: -5px;
+    padding: 14px;
+    font-size: 14px;
+    color: #FFF;
 }

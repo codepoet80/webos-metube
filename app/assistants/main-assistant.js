@@ -142,7 +142,7 @@ MainAssistant.prototype.handleCommand = function(event) {
                 stageController.pushScene({ name: "preferences", disableSceneScroller: false });
                 break;
             case 'do-myAbout':
-                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube client for webOS. Copyright 2021, Jon Wise. Distributed under an MIT License.<br>Source code available at: https://github.com/codepoet80/webos-metube");
+                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube client for webOS. Copyright 2021, Jon Wise. Thanks to Nomad84 and MrHall17 for beta testing. Distributed under an MIT License.<br>Source code available at: https://github.com/codepoet80/webos-metube");
                 break;
         }
     }
@@ -264,7 +264,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
                 this.addFile(videoRequest);
             } else {
                 Mojo.Log.error("No usable response from server while sending list request: " + response);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity.");
+                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity and/or self-host settings.");
             }
         }.bind(this));
     } else {
@@ -296,7 +296,7 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
             }
         } else {
             Mojo.Log.error("No usable response from server while searching YouTube: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity.");
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the search request. Check network connectivity and/or self-host settings.");
         }
 
         this.enableUI();
@@ -410,7 +410,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
             }
         } else {
             Mojo.Log.error("No usable response from server while checking for new files: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity.");
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity and/or self-host settings.");
             clearInterval(this.FileCheckInt);
 
             this.enableUI();
@@ -457,7 +457,7 @@ MainAssistant.prototype.addFile = function(theFile) {
             this.enableUI();
 
             Mojo.Log.error("No usable response from server while adding new file request: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity.");
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity and/or self-host settings.");
         }
     }.bind(this));
 }
@@ -586,23 +586,12 @@ MainAssistant.prototype.enableUI = function() {
 
 MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {
     //Test cases
+    if (videoRequest.indexOf("!") != -1)
+        videoRequest = videoRequest.replace(/!/g, "");
     if (videoRequest.toLowerCase() == "*test")
         videoRequest = "https://www.youtube.com/watch?v=UYPoMjR6-Ao";
     if (videoRequest.toLowerCase() == "*missing")
         videoRequest = "https://www.youtube.com/watch?v=IcrbM1L_BoI";
-
-    //Easter eggs
-    switch (videoRequest.toLowerCase()) {
-        case "*benjamin wyndham":
-            videoRequest = "https://www.youtube.com/watch?v=uJ2RYov2s5Y";
-            break;
-        case "*abigail joan":
-            videoRequest = "https://www.youtube.com/watch?v=_P-_OZG6vFY";
-            break;
-        case "*elisa grace": //TODO: YouTube won't play this video due to a copyright claim
-            videoRequest = "https://www.youtube.com/watch?v=EN7m9v1UtRk";
-            break;
-    }
     return videoRequest;
 }
 
