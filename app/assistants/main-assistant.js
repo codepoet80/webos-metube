@@ -129,6 +129,12 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2 || appModel.AppSettingsCurrent["PlaybackStrategy"] == "download") {
         this.DownloadFirst = true;
     }
+    //handle launch with search query
+    if (appModel.LaunchQuery != "") {
+        Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
+        $("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
+        this.handleClick();
+    }
     //Get ready for input!
     $("txtYoutubeURL").focus();
 };

@@ -13,6 +13,7 @@ var AppModel = function() {
 
     //Define your app-wide, non-persisted settings here
     this.UpdateCheckDone = false;
+    this.LaunchQuery = "";
 
     //Define your app preferences (to be saved by OS)
     this.AppSettingsCurrent = null;

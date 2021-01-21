@@ -2,7 +2,7 @@
 
 YouTube client for legacy Palm/HP webOS devices, depends on back-end services listed below.
 
-Tested on Pre, Pre2, Veer and Touchpad.
+Tested on Pre, Pre2, Veer and Touchpad. Now with Just Type search capability!
 
 Learn more about this app at: [http://metube.webosarchive.com](http://metube.webosarchive.com)
 

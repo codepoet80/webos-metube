@@ -1,10 +1,20 @@
 {
     "id": "com.jonandnic.metube",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "vendor": "Jon Wise",
     "type": "web",
     "main": "index.html",
     "title": "MeTube",
     "icon": "icon.png",
-    "uiRevision": "2"
+    "uiRevision": "2",
+    "theme": "dark",
+    "universalSearch": {
+        "search": {
+            "displayName": "MeTube",
+            "url": "com.jonandnic.metube",
+            "launchParam": {
+                "query": "#{searchTerms}"
+            }
+        }
+    }
 }
