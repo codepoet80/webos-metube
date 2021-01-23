@@ -42,8 +42,8 @@ MainAssistant.prototype.setup = function() {
     this.emptyResults = [
         { youtubeId: "-1", videoName: "Empty", thumbnail: "", selectedState: true }
     ]
-    this.lightListElement = this.controller.get('searchResultsList');
-    this.lightInfoModel = {
+    this.resultsListElement = this.controller.get('searchResultsList');
+    this.resultsInfoModel = {
         items: this.emptyResults
     };
     //Search Result List templates (loads other HTML)
@@ -54,7 +54,7 @@ MainAssistant.prototype.setup = function() {
         renderLimit: 25,
         reorderable: false
     };
-    this.controller.setupWidget('searchResultsList', this.template, this.lightInfoModel);
+    this.controller.setupWidget('searchResultsList', this.template, this.resultsInfoModel);
     //Menu
     this.appMenuAttributes = { omitDefaultItems: true };
     this.appMenuModel = {
