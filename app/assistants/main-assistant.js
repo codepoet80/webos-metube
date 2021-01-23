@@ -296,7 +296,7 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
                     //If we got a good looking response, update the UI
                     this.updateSearchResultsList(responseObj.items);
                 } else {
-                    Mojo.Log.warn("Search results were empty. This is unlikely, server, API or connectivity problem possible");
+                    Mojo.Log.warn("Search results were empty. This is unlikely; server, API or connectivity problem possible");
                     Mojo.Additions.ShowDialogBox("No results", "The server did not report any matches for the search.");
                 }
             }
