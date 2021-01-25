@@ -199,30 +199,43 @@ PreferencesAssistant.prototype.showBetaFeatures = function() {
 PreferencesAssistant.prototype.handleValueChange = function(event) {
 
     Mojo.Log.info(event.srcElement.id + " value changed to " + event.value);
-    if (event.srcElement.id == "toggleGoogleAPI") {
-        var thisWidgetSetup = this.controller.getWidgetSetup("txtGoogleAPI");
-        thisWidgetSetup.model.disabled = !event.value;
-        this.controller.modelChanged(thisWidgetSetup.model);
-        if (event.value)
-            this.controller.get('txtGoogleAPI').mojo.focus();
-    } else if (event.srcElement.id == "toggleClientAPI") {
-        var thisWidgetSetup = this.controller.getWidgetSetup("txtClientAPI");
-        thisWidgetSetup.model.disabled = !event.value;
-        this.controller.modelChanged(thisWidgetSetup.model);
-        if (event.value)
-            this.controller.get('txtClientAPI').mojo.focus();
-    } else if (event.srcElement.id == "toggleServerKey") {
-        var thisWidgetSetup = this.controller.getWidgetSetup("txtServerKey");
-        thisWidgetSetup.model.disabled = !event.value;
-        this.controller.modelChanged(thisWidgetSetup.model);
-        if (event.value)
-            this.controller.get('txtServerKey').mojo.focus();
-    } else if (event.srcElement.id == "toggleCustomEndPoint") {
-        var thisWidgetSetup = this.controller.getWidgetSetup("txtEndpointURL");
-        thisWidgetSetup.model.disabled = !event.value;
-        this.controller.modelChanged(thisWidgetSetup.model);
-        if (event.value)
-            this.controller.get('txtEndpointURL').mojo.focus();
+    switch (event.srcElement.id) {
+        case "toggleGoogleAPI":
+            {
+                var thisWidgetSetup = this.controller.getWidgetSetup("txtGoogleAPI");
+                thisWidgetSetup.model.disabled = !event.value;
+                this.controller.modelChanged(thisWidgetSetup.model);
+                if (event.value)
+                    this.controller.get('txtGoogleAPI').mojo.focus();
+                break;
+            }
+        case "toggleClientAPI":
+            {
+                var thisWidgetSetup = this.controller.getWidgetSetup("txtClientAPI");
+                thisWidgetSetup.model.disabled = !event.value;
+                this.controller.modelChanged(thisWidgetSetup.model);
+                if (event.value)
+                    this.controller.get('txtClientAPI').mojo.focus();
+                break;
+            }
+        case "toggleServerKey":
+            {
+                var thisWidgetSetup = this.controller.getWidgetSetup("txtServerKey");
+                thisWidgetSetup.model.disabled = !event.value;
+                this.controller.modelChanged(thisWidgetSetup.model);
+                if (event.value)
+                    this.controller.get('txtServerKey').mojo.focus();
+                break;
+            }
+        case "toggleCustomEndPoint":
+            {
+                var thisWidgetSetup = this.controller.getWidgetSetup("txtEndpointURL");
+                thisWidgetSetup.model.disabled = !event.value;
+                this.controller.modelChanged(thisWidgetSetup.model);
+                if (event.value)
+                    this.controller.get('txtEndpointURL').mojo.focus();
+                break;
+            }
     }
 
     //We stashed the preference name in the title of the HTML element, so we don't have to use a case statement
