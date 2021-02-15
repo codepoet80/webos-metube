@@ -136,6 +136,7 @@ MainAssistant.prototype.activate = function(event) {
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
         $("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
+        this.handleTextInput(appModel.LaunchQuery);
         this.handleClick();
     }
     //Get ready for input!
@@ -244,18 +245,19 @@ MainAssistant.prototype.handleClearTap = function() {
 
 //Handle list item taps
 MainAssistant.prototype.handleListClick = function(event) {
-    Mojo.Log.info("Item tapped: " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
-    Mojo.Log.info("Element tapped: " + event.originalEvent.target.className);
+    Mojo.Log.info("Item tapped with element class " + event.originalEvent.target.className + ": " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
     this.LastTappedVideoTitle = event.item.videoName;
 
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     if (event.item.selectedState) {
         if (event.originalEvent.target.className == "checkmark true") { //uncheck if checkmark tapped
+            Mojo.Log.info("uncheck item!");
             event.item.selectedState = false;
             $("txtYoutubeURL").value = this.SearchValue;
             this.handleTextInput(event, this.SearchValue);
         } else { //otherwise, treat as a second tap and go to top
-            $("txtYoutubeURL").focus();
+            Mojo.Log.info("go to top!");
+            this.controller.getSceneScroller().mojo.revealTop();
         }
     } else {
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
@@ -270,10 +272,7 @@ MainAssistant.prototype.handleListClick = function(event) {
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     this.controller.modelChanged(listWidgetSetup.model);
 
-    //Scroll back up to top (annoying)
-    // $("txtYoutubeURL").focus();
     return false;
-
 }
 
 //Depending on history, either get previously accessed video, or request a new one from the service
