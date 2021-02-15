@@ -26,7 +26,7 @@ MainAssistant.prototype.setup = function() {
     //Submit button - with global members for easy toggling later
     this.submitBtnAttrs = {};
     this.submitBtnModel = {
-        label: "Submit",
+        label: "Popular",
         disabled: false
     };
     this.controller.setupWidget("btnGetVideo", this.submitBtnAttrs, this.submitBtnModel);
@@ -72,6 +72,9 @@ MainAssistant.prototype.setup = function() {
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
     // Non-Mojo widgets
     $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
+    $("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
+    $("txtYoutubeURL").addEventListener("change", this.handleTextInput.bind(this));
+    $("txtYoutubeURL").addEventListener("paste", this.handleTextPaste.bind(this));
 
     //Check for updates
     if (!appModel.UpdateCheckDone) {
@@ -154,6 +157,34 @@ MainAssistant.prototype.handleCommand = function(event) {
     }
 };
 
+MainAssistant.prototype.handleTextInput = function(event, actualText) {
+    var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
+    var useVal = $("txtYoutubeURL").value;
+    if (actualText)
+        useVal = actualText;
+    if (useVal == "") {
+        if (submitBtnSetup.model.label != "Popular") {
+            submitBtnSetup.model.label = "Popular";
+            this.controller.modelChanged(submitBtnSetup.model);
+        }
+    } else if (useVal.indexOf("://") != -1) {
+        if (submitBtnSetup.model.label != "Play") {
+            submitBtnSetup.model.label = "Play";
+            this.controller.modelChanged(submitBtnSetup.model);
+        }
+    } else {
+        if (submitBtnSetup.model.label != "Search") {
+            submitBtnSetup.model.label = "Search";
+            this.controller.modelChanged(submitBtnSetup.model);
+        }
+    }
+}
+
+MainAssistant.prototype.handleTextPaste = function(event) {
+    Mojo.Log.info("Handling pasted value: " + event.clipboardData.getData('Text'));
+    this.handleTextInput(event, event.clipboardData.getData('Text'));
+}
+
 //Handle mojo button taps
 MainAssistant.prototype.handleClick = function(event) {
 
@@ -172,7 +203,10 @@ MainAssistant.prototype.handleClick = function(event) {
         }
         //Otherwise it must be a search query
         else {
-            this.searchYouTube(videoRequest);
+            if (!videoRequest || videoRequest == "")
+                this.searchYouTube("");
+            else
+                this.searchYouTube(videoRequest);
         }
     }
 }
@@ -184,8 +218,11 @@ MainAssistant.prototype.handleClearTap = function() {
     //Tell any downloads to cancel
     this.cancelDownload = true;
 
-    //Clear the text box
+    //Reset the text box
     $("txtYoutubeURL").value = "";
+    var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
+    submitBtnSetup.model.label = "Popular";
+    this.controller.modelChanged(submitBtnSetup.model);
 
     //Uncheck all items in list
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
@@ -208,16 +245,26 @@ MainAssistant.prototype.handleClearTap = function() {
 //Handle list item taps
 MainAssistant.prototype.handleListClick = function(event) {
     Mojo.Log.info("Item tapped: " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
+    Mojo.Log.info("Element tapped: " + event.originalEvent.target.className);
+    this.LastTappedVideoTitle = event.item.videoName;
+
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     if (event.item.selectedState) {
-        event.item.selectedState = false;
-        $("txtYoutubeURL").value = this.SearchValue;
+        if (event.originalEvent.target.className == "checkmark true") { //uncheck if checkmark tapped
+            event.item.selectedState = false;
+            $("txtYoutubeURL").value = this.SearchValue;
+            this.handleTextInput(event, this.SearchValue);
+        } else { //otherwise, treat as a second tap and go to top
+            $("txtYoutubeURL").focus();
+        }
     } else {
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
             listWidgetSetup.model.items[i].selectedState = false;
         }
         event.item.selectedState = true;
-        $("txtYoutubeURL").value = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
+        var videoVal = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
+        $("txtYoutubeURL").value = videoVal;
+        this.handleTextInput(event, videoVal);
     }
     //Update UI
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
@@ -485,19 +532,30 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
         videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
     //otherwise its a file path
     Mojo.Log.warn("Using video target: " + videoURL);
+    useTitle = "YouTube Video";
+    if (this.LastTappedVideoTitle)
+        useTitle = this.LastTappedVideoTitle;
+    else {
+        if (isStream) {
+            useTitle = this.makeFileNameFromDownloadURL(videoURL);
+        }
+    }
+    Mojo.Log.info("Using video title: " + useTitle);
+    this.LastTappedVideoTitle = null;
 
     //Ask webOS to launch the video player with the new url
     this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
-        method: "open",
+        method: "launch",
         parameters: {
             "id": "com.palm.app.videoplayer",
             "params": {
-                "target": videoURL
+                "target": videoURL,
+                "videoTitle": useTitle
             }
         },
         onSuccess: function(response) {
             Mojo.Log.info("Video player launch success", JSON.stringify(response));
-            $("txtYoutubeURL").focus();
+            $("btnGetVideo").focus();
         }.bind(this),
         onFailure: function(response) {
             Mojo.Log.error("Video player launch Failure, " + videoURL + ":", JSON.stringify(response), response.errorText);
@@ -505,6 +563,15 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
     });
     this.enableUI();
     return true;
+}
+
+MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
+    var useTitle = videoURL.split("?video=");
+    useTitle = useTitle[1];
+    useTitle = useTitle.split("&requestid=");
+    useTitle = useTitle[0];
+    useTitle = useTitle.replace(".mp4", "");
+    return useTitle;
 }
 
 //Actually play the video we requested 
@@ -515,6 +582,8 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     this.cancelDownload = false;
 
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
+    this.LastTappedVideoTitle = this.makeFileNameFromDownloadURL(videoURL);
+
     //Ask webOS to download the video from the URL
     this.downloader = this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
         method: 'download',
