@@ -1,9 +1,21 @@
 <div class="palm-row" x-mojo-tap-highlight='momentary'>
     <div class="palm-row-wrapper">
         <div style="min-height:105px;padding-top:2px">
-            <div style="width:#{imageWidth}; float:left;"><img class="thumbnail" src="#{thumbnail}"></div>
-            <div class="checkmark #{selectedState}"></div>
-            <div class="video-title" style="padding-top: #{topMargin};margin-left:#{titleMargin}">#{videoName}</div>
+            <div class="checkmark #{selectedState}" style="float:right"></div>
+            <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                    <td>
+                        <div style="width:#{imageWidth};"><img class="thumbnail" src="#{thumbnail}"></div>
+                    </td>
+                    <td>
+                        <div class="title" style="padding-top: #{topMargin};margin-left:#{titleMargin}">#{videoName}</div>
+                    </td>
+                </tr>
+            </table>
+
+            <!--
+            <div class="truncating-text" style="padding-top: #{topMargin};margin-left:#{titleMargin}">#{videoName}</div>
+-->
         </div>
     </div>
 </div>

@@ -366,9 +366,9 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
         if (this.DeviceType == "TouchPad") {
             thisWidgetSetup.model.items.push({
                 youtubeId: results[i].id.videoId,
-                topMargin: "20px",
+                topMargin: "8px",
                 imageWidth: "178px",
-                titleMargin: "10em",
+                titleMargin: "16px",
                 videoName: useName,
                 thumbnail: results[i].snippet.thumbnails["medium"].url,
                 selectedState: false
@@ -380,7 +380,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                     youtubeId: results[i].id.videoId,
                     topMargin: "4px",
                     imageWidth: "120px",
-                    titleMargin: "148px",
+                    titleMargin: "10px",
                     videoName: useName,
                     thumbnail: results[i].snippet.thumbnails["default"].url,
                     selectedState: false
@@ -389,9 +389,9 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                 useName = this.cleanupString(useName, 9, 26);
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
-                    topMargin: "6px",
-                    imageWidth: "120px",
-                    titleMargin: "154px",
+                    topMargin: "8px",
+                    imageWidth: "100px",
+                    titleMargin: "30px",
                     videoName: useName,
                     thumbnail: results[i].snippet.thumbnails["default"].url,
                     selectedState: false
