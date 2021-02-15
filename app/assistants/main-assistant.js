@@ -257,7 +257,7 @@ MainAssistant.prototype.handleListClick = function(event) {
             this.handleTextInput(event, this.SearchValue);
         } else { //otherwise, treat as a second tap and go to top
             Mojo.Log.info("go to top!");
-            this.controller.getSceneScroller().mojo.revealTop();
+            this.controller.getSceneScroller().mojo.scrollTo(0, 0, true);
         }
     } else {
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
