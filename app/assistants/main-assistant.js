@@ -204,6 +204,9 @@ MainAssistant.prototype.handleClick = function(event) {
         }
         //Otherwise it must be a search query
         else {
+            //Hide List so spinner can show
+            $("showResultsList").style.display = "none";
+
             if (!videoRequest || videoRequest == "")
                 this.searchYouTube("");
             else
@@ -624,7 +627,7 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
 }
 
 MainAssistant.prototype.disableUI = function(statusValue) {
-    //start spinner
+    //start spinner (if not already spinning)
     if (!this.spinnerModel.spinning) {
         this.spinnerModel.spinning = true;
         this.controller.modelChanged(this.spinnerModel);
