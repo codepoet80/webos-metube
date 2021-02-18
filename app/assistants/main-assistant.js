@@ -628,7 +628,7 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
 
 MainAssistant.prototype.disableUI = function(statusValue) {
     //start spinner (if not already spinning)
-    if (!this.spinnerModel.spinning) {
+    if (this.spinnerModel && !this.spinnerModel.spinning) {
         this.spinnerModel.spinning = true;
         this.controller.modelChanged(this.spinnerModel);
     }
@@ -649,8 +649,10 @@ MainAssistant.prototype.disableUI = function(statusValue) {
 
 MainAssistant.prototype.enableUI = function() {
     //stop spinner
-    this.spinnerModel.spinning = false;
-    this.controller.modelChanged(this.spinnerModel);
+    if (this.spinnerModel) {
+        this.spinnerModel.spinning = false;
+        this.controller.modelChanged(this.spinnerModel);
+    }
 
     //hide status
     $("divWorkingStatus").style.display = "none";
