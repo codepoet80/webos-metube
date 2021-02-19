@@ -364,54 +364,34 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     thisWidgetSetup.model.items = []; //remove the previous list
     for (var i = 0; i < results.length; i++) {
-        var useName = this.decodeEntities(results[i].snippet.title);
-
+        var newItem = {
+            youtubeId: results[i].id.videoId,
+            videoName: this.decodeEntities(results[i].snippet.title),
+            videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
+            selectedState: false
+        }
         if (this.DeviceType == "TouchPad") {
-            thisWidgetSetup.model.items.push({
-                youtubeId: results[i].id.videoId,
-                imageWidth: "178px",
-                titleMargin: "182px",
-                videoName: useName,
-                videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
-                thumbnail: results[i].snippet.thumbnails["medium"].url,
-                selectedState: false
-            });
+            newItem.imageWidth = "178px";
+            newItem.titleMargin = "182px";
+            newItem.thumbnail = results[i].snippet.thumbnails["medium"].url;
         } else {
+            newItem.videoName = this.cleanupString(newItem.videoName, 9, 32);
             if (this.DeviceType == "Pre3") {
-                useName = this.cleanupString(useName, 11, 34);
-                thisWidgetSetup.model.items.push({
-                    youtubeId: results[i].id.videoId,
-                    imageWidth: "120px",
-                    titleMargin: "115px",
-                    videoName: useName,
-                    videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
-                    thumbnail: results[i].snippet.thumbnails["default"].url,
-                    selectedState: false
-                });
+                newItem.imageWidth = "120px";
+                newItem.titleMargin = "115px";
+                newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else if (this.DeviceType == "Tiny") {
-                useName = this.cleanupString(useName, 11, 34);
-                thisWidgetSetup.model.items.push({
-                    youtubeId: results[i].id.videoId,
-                    imageWidth: "120px",
-                    titleMargin: "128px",
-                    videoName: useName,
-                    videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
-                    thumbnail: results[i].snippet.thumbnails["default"].url,
-                    selectedState: false
-                });
+                newItem.videoName = this.cleanupString(newItem.videoName, 11, 34);
+                newItem.imageWidth = "120px";
+                newItem.titleMargin = "128px";
+                newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else {
-                useName = this.cleanupString(useName, 9, 26);
-                thisWidgetSetup.model.items.push({
-                    youtubeId: results[i].id.videoId,
-                    imageWidth: "100px",
-                    titleMargin: "108px",
-                    videoName: useName,
-                    videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
-                    thumbnail: results[i].snippet.thumbnails["default"].url,
-                    selectedState: false
-                });
+                newItem.imageWidth = "100px";
+                newItem.titleMargin = "95px";
+                newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             }
         }
+        thisWidgetSetup.model.items.push(newItem);
     }
     Mojo.Log.info("Updating search results widget with " + results.length + " results!");
     $("showResultsList").style.display = "block";
