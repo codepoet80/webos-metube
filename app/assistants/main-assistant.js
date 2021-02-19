@@ -373,9 +373,11 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
         if (this.DeviceType == "TouchPad") {
             newItem.imageWidth = "178px";
             newItem.titleMargin = "182px";
+            newItem.topMargin = "4px";
             newItem.thumbnail = results[i].snippet.thumbnails["medium"].url;
         } else {
             newItem.videoName = this.cleanupString(newItem.videoName, 9, 32);
+            newItem.topMargin = "-10px";
             if (this.DeviceType == "Pre3") {
                 newItem.imageWidth = "120px";
                 newItem.titleMargin = "115px";
