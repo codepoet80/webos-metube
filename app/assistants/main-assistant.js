@@ -369,9 +369,8 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
         if (this.DeviceType == "TouchPad") {
             thisWidgetSetup.model.items.push({
                 youtubeId: results[i].id.videoId,
-                topMargin: "8px",
                 imageWidth: "178px",
-                titleMargin: "186px",
+                titleMargin: "182px",
                 videoName: useName,
                 videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
                 thumbnail: results[i].snippet.thumbnails["medium"].url,
@@ -382,7 +381,17 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                 useName = this.cleanupString(useName, 11, 34);
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
-                    topMargin: "8px",
+                    imageWidth: "120px",
+                    titleMargin: "115px",
+                    videoName: useName,
+                    videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
+                    thumbnail: results[i].snippet.thumbnails["default"].url,
+                    selectedState: false
+                });
+            } else if (this.DeviceType == "Tiny") {
+                useName = this.cleanupString(useName, 11, 34);
+                thisWidgetSetup.model.items.push({
+                    youtubeId: results[i].id.videoId,
                     imageWidth: "120px",
                     titleMargin: "128px",
                     videoName: useName,
@@ -394,7 +403,6 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
                 useName = this.cleanupString(useName, 9, 26);
                 thisWidgetSetup.model.items.push({
                     youtubeId: results[i].id.videoId,
-                    topMargin: "8px",
                     imageWidth: "100px",
                     titleMargin: "108px",
                     videoName: useName,
@@ -410,15 +418,9 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     this.controller.modelChanged(thisWidgetSetup.model);
 }
 
-MainAssistant.prototype.convertTimeStamp = function(timeStamp, isUTC) {
-    if (isUTC) {
-        var offset = new Date().getTimezoneOffset();
-        timeStamp = Date.parse(timeStamp);
-        timeStamp = timeStamp - ((offset * 60) * 1000);
-        timeStamp = new Date(timeStamp);
-    }
-    timeStamp = timeStamp.toLocaleString();
-    return timeStamp;
+MainAssistant.prototype.convertTimeStamp = function(timeStamp) {
+    timeStamp = timeStamp.split("T");
+    return timeStamp[0];
 }
 
 //Try to make strings easier on tiny devices
