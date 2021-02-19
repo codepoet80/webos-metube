@@ -1,21 +1,12 @@
-<div class="palm-row" x-mojo-tap-highlight='momentary'>
-    <div class="palm-row-wrapper">
-        <div style="min-height:105px;padding-top:2px">
-            <div class="checkmark #{selectedState}" style="float:right"></div>
-            <table cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                    <td>
-                        <div style="width:#{imageWidth};"><img class="thumbnail" src="#{thumbnail}"></div>
-                    </td>
-                    <td>
-                        <div class="title" style="padding-top: #{topMargin};margin-left:#{titleMargin}">#{videoName}</div>
-                    </td>
-                </tr>
-            </table>
-
-            <!--
-            <div class="truncating-text" style="padding-top: #{topMargin};margin-left:#{titleMargin}">#{videoName}</div>
--->
+<div class="palm-row">
+    <div style="min-height:105px; padding-top:2px; background-image: url('#{thumbnail}'); background-repeat: no-repeat; background-size: #{imageWidth};">
+        <div class="title" style="position: absolute;margin-left:#{titleMargin};margin-right:18px;z-index: 2;">
+            #{videoName}<br>
+            <span class="video-date">#{videoDate}</span>
+        </div>
+        <div style="position: relative; left: 98%; width: 40px; margin-left: -20px; margin-top: 30px;z-index: 10; height: 40px;">
+            <div class="checkmark #{selectedState}"></div>
         </div>
     </div>
+
 </div>

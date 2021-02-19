@@ -7,10 +7,6 @@
     margin-left: 5%;
 }
 
-.checkmark {
-    margin-top: 37px;
-}
-
 .checkmark.true {
     visibility: visible;
 }
@@ -53,4 +49,12 @@
     padding: 14px;
     font-size: 14px;
     color: #FFF;
+}
+
+.video-date {
+    line-height: 12px;
+    font-size: 12px;
+    color: dimgray;
+    padding: 0px;
+    margin: 0px;
 }

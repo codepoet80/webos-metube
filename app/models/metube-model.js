@@ -82,6 +82,7 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults,
 
     var searchURL = this.buildURL("search") + "?part=snippet&maxResults=" + numResults + "&type=video&q=" + encodeURI(searchString) + this.getCurrentGoogleKey();
     //Mojo.Log.info("Asking server to search with URL: " + searchURL);
+
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", searchURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
