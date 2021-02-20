@@ -75,6 +75,7 @@ MainAssistant.prototype.setup = function() {
     $("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
     $("txtYoutubeURL").addEventListener("change", this.handleTextInput.bind(this));
     $("txtYoutubeURL").addEventListener("paste", this.handleTextPaste.bind(this));
+    $("watchViewTitle").addEventListener(Mojo.Event.tap, this.scrollToTop.bind(this));
 
     //Check for updates
     if (!appModel.UpdateCheckDone) {
@@ -259,8 +260,7 @@ MainAssistant.prototype.handleListClick = function(event) {
             $("txtYoutubeURL").value = this.SearchValue;
             this.handleTextInput(event, this.SearchValue);
         } else { //otherwise, treat as a second tap and go to top
-            Mojo.Log.info("go to top!");
-            this.controller.getSceneScroller().mojo.scrollTo(0, 0, true);
+            this.scrollToTop();
         }
     } else { //item is unselected has been tapped
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
@@ -279,6 +279,11 @@ MainAssistant.prototype.handleListClick = function(event) {
 }
 
 /* UI Functions */
+
+MainAssistant.prototype.scrollToTop = function() {
+    Mojo.Log.info("scrolling to top!");
+    this.controller.getSceneScroller().mojo.scrollTo(0, 0, true);
+}
 
 MainAssistant.prototype.disableUI = function(statusValue) {
     //start spinner (if not already spinning)
