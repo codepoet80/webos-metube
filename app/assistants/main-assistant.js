@@ -1,6 +1,6 @@
 /*
     MeTube helper app for webOS.
-    This app depends on a MeTube service, an exposed download directory, and a Google API key for YouTube
+    This app depends on a MeTube service with an exposed download directory, and a Google API key for YouTube
     All of the above are provided by webOS Archive at no cost for what remains of the webOS mobile community.
 */
 
@@ -248,12 +248,12 @@ MainAssistant.prototype.handleClearTap = function() {
 
 //Handle list item taps
 MainAssistant.prototype.handleListClick = function(event) {
-    Mojo.Log.info("Item tapped with element class " + event.originalEvent.target.className + ": " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
+    //Mojo.Log.info("Item tapped with element class " + event.originalEvent.target.className + ": " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
     this.LastTappedVideoTitle = event.item.videoName;
 
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
-    if (event.item.selectedState) {
-        if (event.originalEvent.target.className == "checkmark true") { //uncheck if checkmark tapped
+    if (event.item.selectedState) { //if items is selected and has been tapped
+        if (event.originalEvent.target.className == "checkmark true") { //if the tap was on the checkmark, uncheck it
             Mojo.Log.info("uncheck item!");
             event.item.selectedState = false;
             $("txtYoutubeURL").value = this.SearchValue;
@@ -262,21 +262,62 @@ MainAssistant.prototype.handleListClick = function(event) {
             Mojo.Log.info("go to top!");
             this.controller.getSceneScroller().mojo.scrollTo(0, 0, true);
         }
-    } else {
+    } else { //item is unselected has been tapped
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
             listWidgetSetup.model.items[i].selectedState = false;
         }
         event.item.selectedState = true;
         var videoVal = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
+        if (event.item.videoDetails.indexOf(" -") == -1 && event.item.videoDetails.indexOf(" ("))
+            this.updateVideoDetails(event.item, event.item.youtubeId)
         $("txtYoutubeURL").value = videoVal;
         this.handleTextInput(event, videoVal);
     }
     //Update UI
-    var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     this.controller.modelChanged(listWidgetSetup.model);
-
     return false;
 }
+
+/* UI Functions */
+
+MainAssistant.prototype.disableUI = function(statusValue) {
+    //start spinner (if not already spinning)
+    if (this.spinnerModel && !this.spinnerModel.spinning) {
+        this.spinnerModel.spinning = true;
+        this.controller.modelChanged(this.spinnerModel);
+    }
+
+    if (statusValue && statusValue != "") {
+        $("divWorkingStatus").style.display = "block";
+        $("divStatusValue").innerHTML = statusValue;
+    } else {
+        $("divWorkingStatus").style.display = "none";
+    }
+
+    //disable submit button
+    if (!this.submitBtnModel.disabled) {
+        this.submitBtnModel.disabled = true;
+        this.controller.modelChanged(this.submitBtnModel);
+    }
+}
+
+MainAssistant.prototype.enableUI = function() {
+    //stop spinner
+    if (this.spinnerModel) {
+        this.spinnerModel.spinning = false;
+        this.controller.modelChanged(this.spinnerModel);
+    }
+
+    //hide status
+    $("divWorkingStatus").style.display = "none";
+    $("divStatusValue").innerHTML = "";
+
+    //enable submit button
+    this.submitBtnModel.disabled = false;
+    this.controller.modelChanged(this.submitBtnModel);
+}
+
+/* Service Calls and Binding */
 
 //Depending on history, either get previously accessed video, or request a new one from the service
 MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
@@ -367,23 +408,24 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
         var newItem = {
             youtubeId: results[i].id.videoId,
             videoName: this.decodeEntities(results[i].snippet.title),
-            videoDate: this.convertTimeStamp(results[i].snippet.publishedAt, true),
+            videoDetails: this.convertTimeStamp(results[i].snippet.publishedAt, true),
             selectedState: false
         }
         if (this.DeviceType == "TouchPad") {
+            newItem.detailClass = "touchpad";
             newItem.imageWidth = "178px";
             newItem.titleMargin = "182px";
             newItem.topMargin = "4px";
             newItem.thumbnail = results[i].snippet.thumbnails["medium"].url;
         } else {
-            newItem.videoName = this.cleanupString(newItem.videoName, 9, 32);
-            newItem.topMargin = "-10px";
+            newItem.videoName = this.cleanupString(newItem.videoName, 32);
+            newItem.topMargin = "-8px";
             if (this.DeviceType == "Pre3") {
                 newItem.imageWidth = "120px";
                 newItem.titleMargin = "115px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else if (this.DeviceType == "Tiny") {
-                newItem.videoName = this.cleanupString(newItem.videoName, 11, 34);
+                newItem.videoName = this.cleanupString(newItem.videoName, 38);
                 newItem.imageWidth = "120px";
                 newItem.titleMargin = "128px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
@@ -400,17 +442,32 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     this.controller.modelChanged(thisWidgetSetup.model);
 }
 
-MainAssistant.prototype.convertTimeStamp = function(timeStamp) {
-    timeStamp = timeStamp.split("T");
-    return timeStamp[0];
-}
-
-//Try to make strings easier on tiny devices
-MainAssistant.prototype.cleanupString = function(str, mxwl, mxsl) {
-    str = str.substring(0, mxsl);
-    str = str.replace(/\s+/g, ' ').trim();
-    str = str.replace(/[^a-z0-9\s]/gi, '');
-    return str;
+//Ask for more details about a video
+MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
+    this.itemToUpdate = item;
+    metubeModel.DoMeTubeDetailsRequest(videoId, function(response) {
+        if (response) {
+            var responseObj = JSON.parse(response);
+            if (responseObj.status && responseObj.status == "error") {
+                Mojo.Log.error("Error message from server while getting video details: " + responseObj.msg);
+            } else {
+                if (responseObj.items && responseObj.items[0] != null && responseObj.items[0].contentDetails != null) {
+                    var newDetails = item.videoDetails;
+                    if (responseObj.items[0].contentDetails.duration != null)
+                        newDetails += " - " + this.convertDuration(responseObj.items[0].contentDetails.duration);
+                    if (responseObj.items[0].contentDetails.definition != null)
+                        newDetails += " (" + responseObj.items[0].contentDetails.definition.toUpperCase() + ")";
+                    item.videoDetails = newDetails;
+                    var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
+                    this.controller.modelChanged(listWidgetSetup.model);
+                } else {
+                    Mojo.Log.warn("Details response was missing expected content. This may indicate the YouTube APIs have changed.");
+                }
+            }
+        } else {
+            Mojo.Log.error("No usable response from server while getting video details.");
+        }
+    }.bind(this));
 }
 
 //Compare the list of files we know about with the files the server has to see what's new
@@ -565,15 +622,6 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
     return true;
 }
 
-MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
-    var useTitle = videoURL.split("?video=");
-    useTitle = useTitle[1];
-    useTitle = useTitle.split("&requestid=");
-    useTitle = useTitle[0];
-    useTitle = useTitle.replace(".mp4", "");
-    return useTitle;
-}
-
 //Actually play the video we requested 
 this.downloader = null;
 MainAssistant.prototype.downloadVideoFile = function(videoURL) {
@@ -624,43 +672,23 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     });
 }
 
-MainAssistant.prototype.disableUI = function(statusValue) {
-    //start spinner (if not already spinning)
-    if (this.spinnerModel && !this.spinnerModel.spinning) {
-        this.spinnerModel.spinning = true;
-        this.controller.modelChanged(this.spinnerModel);
-    }
+/* Lifecycle Stuff */
 
-    if (statusValue && statusValue != "") {
-        $("divWorkingStatus").style.display = "block";
-        $("divStatusValue").innerHTML = statusValue;
-    } else {
-        $("divWorkingStatus").style.display = "none";
-    }
+MainAssistant.prototype.deactivate = function(event) {
+    /* remove any event handlers you added in activate and do any other cleanup that should happen before
+       this scene is popped or another scene is pushed on top */
+    Mojo.Event.stopListening(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick);
+    Mojo.Event.stopListening(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick);
+    // Non-Mojo widgets
+    $("imgSearchClear").removeEventListener("click", this.handleClearTap);
+};
 
-    //disable submit button
-    if (!this.submitBtnModel.disabled) {
-        this.submitBtnModel.disabled = true;
-        this.controller.modelChanged(this.submitBtnModel);
-    }
-}
+MainAssistant.prototype.cleanup = function(event) {
+    /* this function should do any cleanup needed before the scene is destroyed as 
+       a result of being popped off the scene stack */
+};
 
-MainAssistant.prototype.enableUI = function() {
-    //stop spinner
-    if (this.spinnerModel) {
-        this.spinnerModel.spinning = false;
-        this.controller.modelChanged(this.spinnerModel);
-    }
-
-    //hide status
-    $("divWorkingStatus").style.display = "none";
-    $("divStatusValue").innerHTML = "";
-
-    //enable submit button
-    this.submitBtnModel.disabled = false;
-    this.controller.modelChanged(this.submitBtnModel);
-}
-
+/* Helper Functions */
 MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {
     //Test cases
     if (videoRequest.indexOf("!") != -1)
@@ -685,23 +713,42 @@ MainAssistant.prototype.decodeEntities = function(text) {
         ['nbsp', ' '],
         ['quot', '"']
     ];
-
     for (var i = 0, max = entities.length; i < max; ++i)
         text = text.replace(new RegExp('&' + entities[i][0] + ';', 'g'), entities[i][1]);
-
+    var emojis = /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff]|[\u200d]|[\ufe0f])/g;
+    text = text.replace(emojis, ""); //try to remove emojis
     return text;
 }
 
-MainAssistant.prototype.deactivate = function(event) {
-    /* remove any event handlers you added in activate and do any other cleanup that should happen before
-       this scene is popped or another scene is pushed on top */
-    Mojo.Event.stopListening(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick);
-    Mojo.Event.stopListening(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick);
-    // Non-Mojo widgets
-    $("imgSearchClear").removeEventListener("click", this.handleClearTap);
-};
+MainAssistant.prototype.convertTimeStamp = function(timeStamp) {
+    timeStamp = timeStamp.split("T");
+    return timeStamp[0];
+}
 
-MainAssistant.prototype.cleanup = function(event) {
-    /* this function should do any cleanup needed before the scene is destroyed as 
-       a result of being popped off the scene stack */
-};
+MainAssistant.prototype.convertDuration = function(duration) {
+    duration = duration.replace("PT", "");
+    duration = duration.replace("S", "");
+    duration = duration.split("M");
+    var seconds = duration[duration.length - 1];
+    if (seconds < 10)
+        seconds = "0" + seconds;
+    duration[duration.length - 1] = seconds;
+    return duration.join(":");
+}
+
+//Try to make strings easier on tiny devices
+MainAssistant.prototype.cleanupString = function(str, mxsl) {
+    str = str.substring(0, mxsl);
+    str = str.replace(/\s+/g, ' ').trim();
+    str = str.replace(/[^a-z0-9\s]/gi, '');
+    return str;
+}
+
+MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
+    var useTitle = videoURL.split("?video=");
+    useTitle = useTitle[1];
+    useTitle = useTitle.split("&requestid=");
+    useTitle = useTitle[0];
+    useTitle = useTitle.replace(".mp4", "");
+    return useTitle;
+}

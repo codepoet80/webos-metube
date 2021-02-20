@@ -96,6 +96,29 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults,
     }.bind(this);
 }
 
+//HTTP request for video details
+MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
+    //Mojo.Log.info("Getting video details from: " + this.buildURL("details"));
+    this.retVal = "";
+    if (callback)
+        callback = callback.bind(this);
+
+    var detailsURL = this.buildURL("details") + "?id=" + videoId + this.getCurrentGoogleKey();
+    Mojo.Log.info("Asking server for video details with URL: " + detailsURL);
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", detailsURL);
+    xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
+    xmlhttp.send();
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+            //Mojo.Log.info("Details response: " + xmlhttp.responseText);
+            if (callback)
+                callback(xmlhttp.responseText);
+        }
+    }.bind(this);
+}
+
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
     Mojo.Log.info("using client key: " + this.getCurrentClientKey());
