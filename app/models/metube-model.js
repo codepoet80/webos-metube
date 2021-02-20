@@ -20,6 +20,7 @@ MetubeModel.prototype.UseCustomServerKey = false;
 MetubeModel.prototype.CustomServerKey = "";
 MetubeModel.prototype.UseCustomEndpoint = false;
 MetubeModel.prototype.CustomEndpointURL = "";
+MetubeModel.prototype.ServiceCompatWarning = 0;
 
 MetubeModel.prototype.buildURL = function(actionType) {
     var urlBase = this.urlBase;
@@ -112,9 +113,16 @@ MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            //Mojo.Log.info("Details response: " + xmlhttp.responseText);
-            if (callback)
-                callback(xmlhttp.responseText);
+            if (xmlhttp.status == 404) {
+                Mojo.Log.error("Service returned 404 requesting video details. If the service is online, there's probably a version mismatch between service and client.");
+                if (this.ServiceCompatWarning == 0) {
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end out of date, can't get details" }, "", "");
+                    this.ServiceCompatWarning++;
+                }
+            } else {
+                //Mojo.Log.info("Details response: " + xmlhttp.responseText);
+                if (callback) callback(xmlhttp.responseText);
+            }
         }
     }.bind(this);
 }
