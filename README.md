@@ -1,6 +1,7 @@
 # MeTube client app for webOS
 
 YouTube client for legacy Palm/HP webOS devices, depends on back-end services listed below.
+Now supports Reddit videos too!
 
 Tested on Pre, Pre2, Veer and Touchpad. Now with Just Type search capability!
 
