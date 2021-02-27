@@ -201,6 +201,9 @@ MainAssistant.prototype.handleClick = function(event) {
 
         //If this is a URL
         if (videoRequest.toLowerCase().indexOf("youtube.com") != -1 || videoRequest.toLowerCase().indexOf("youtu.be") != -1 || videoRequest.toLowerCase().indexOf("reddit.com") != -1 || videoRequest.toLowerCase().indexOf("v.redd.it") != -1) {
+            if (videoRequest.toLowerCase().indexOf("v.redd.it") != -1) {
+                videoRequest = videoRequest.replace("v.redd.it/", "www.reddit.com/video/");
+            }
             this.findOrRequestVideo(videoRequest);
         }
         //Otherwise it must be a search query
