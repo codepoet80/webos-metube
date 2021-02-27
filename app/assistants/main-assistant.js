@@ -510,7 +510,6 @@ MainAssistant.prototype.checkForNewFiles = function() {
                         } else {
                             Mojo.Log.error("Unable to find a video file to play!");
                             clearInterval(this.FileCheckInt);
-
                             this.enableUI();
                         }
                     }

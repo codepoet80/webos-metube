@@ -37,17 +37,21 @@ MetubeModel.prototype.buildURL = function(actionType) {
 }
 
 //HTTP request for add file
-MetubeModel.prototype.DoMeTubeAddRequest = function(youtubeURL, callback) {
+MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, callback) {
 
-    Mojo.Log.info("Requesting YouTube video: " + youtubeURL + " from " + this.buildURL("add"));
+    var useURL = this.buildURL("add");
+    if (videoURL.indexOf("reddit.com") != -1) {
+        useURL = this.buildURL("add-reddit");
+    }
+    Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("POST", this.buildURL("add"));
+    xmlhttp.open("POST", useURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
-    xmlhttp.send(this.encodeRequest(youtubeURL));
+    xmlhttp.send(this.encodeRequest(videoURL));
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
             if (callback)
