@@ -40,7 +40,7 @@ MetubeModel.prototype.buildURL = function(actionType) {
 MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, callback) {
 
     var useURL = this.buildURL("add");
-    if (videoURL.indexOf("reddit.com") != -1) {
+    if (videoURL.indexOf("reddit.com") != -1 || videoURL.indexOf("v.redd.it") != -1) {
         useURL = this.buildURL("add-reddit");
     }
     Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL);
