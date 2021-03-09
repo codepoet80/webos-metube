@@ -25,10 +25,18 @@ AppAssistant.prototype.handleLaunch = function(params) {
         Mojo.Log.info("Launch query was: " + appModel.LaunchQuery);
     }
 
+    //if there was a URL redirect query, load with that
+    if (params && params["target"] != undefined) {
+        appModel.LaunchQuery = decodeURI(params["target"]);
+        Mojo.Log.info("Launch target was: " + appModel.LaunchQuery);
+    }
+
     //if the stage already exists then just bring it into focus
     if (mainStage) {
         var stageController = this.controller.getStageController("");
         stageController.activate();
+        //var mainScene = stageController.activeScene();
+        //mainScene.handleLaunchQuery();
     }
     return;
 };

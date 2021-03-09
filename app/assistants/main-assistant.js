@@ -70,6 +70,8 @@ MainAssistant.prototype.setup = function() {
     /* Always on Event handlers */
     Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
+    Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageActivate, this.activateWindow.bind(this));
+
     // Non-Mojo widgets
     $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
     $("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
@@ -133,16 +135,26 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2 || appModel.AppSettingsCurrent["PlaybackStrategy"] == "download") {
         this.DownloadFirst = true;
     }
+
+    //Get ready for input (and deal with launch parameter input)
+    $("txtYoutubeURL").focus();
+};
+
+MainAssistant.prototype.activateWindow = function(event) { //This is needed for handling a re-launch with parameters
+    Mojo.Log.info("Stage re-activated!");
+    this.handleLaunchQuery();
+};
+
+MainAssistant.prototype.handleLaunchQuery = function() {
     //handle launch with search query
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
         $("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
         this.handleTextInput(appModel.LaunchQuery);
         this.handleClick();
+        appModel.LaunchQuery = "";
     }
-    //Get ready for input!
-    $("txtYoutubeURL").focus();
-};
+}
 
 //Handle menu and button bar commands
 MainAssistant.prototype.handleCommand = function(event) {
