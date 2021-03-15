@@ -118,6 +118,8 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3) {
         this.DeviceType = "TouchPad";
         Mojo.Log.info("Device detected as TouchPad");
+        if (!appModel.AppSettingsCurrent["HDQuality"])
+            appModel.AppSettingsCurrent["HDQuality"] = "bestvideo";
     } else {
         if (window.screen.width == 800 || window.screen.height == 800) {
             this.DeviceType = "Pre3";
@@ -129,6 +131,8 @@ MainAssistant.prototype.activate = function(event) {
             this.DeviceType = "Tiny";
             Mojo.Log.warn("Device detected as Pixi or Veer");
         }
+        if (!appModel.AppSettingsCurrent["HDQuality"])
+            appModel.AppSettingsCurrent["HDQuality"] = "worstvideo";
     }
     //figure out how to play
     this.DownloadFirst = false;
@@ -149,8 +153,10 @@ MainAssistant.prototype.handleLaunchQuery = function() {
     //handle launch with search query
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
-        $("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
-        this.handleTextInput(appModel.LaunchQuery);
+        //$("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
+        $("txtYoutubeURL").value = appModel.LaunchQuery;
+        Mojo.Log.info("set textbox to: " + appModel.LaunchQuery);
+        this.handleTextInput(null, appModel.LaunchQuery);
         this.handleClick();
         appModel.LaunchQuery = "";
     }
@@ -176,6 +182,7 @@ MainAssistant.prototype.handleTextInput = function(event, actualText) {
     var useVal = $("txtYoutubeURL").value;
     if (actualText)
         useVal = actualText;
+    Mojo.Log.info("handling text input of: " + useVal);
     if (useVal == "") {
         if (submitBtnSetup.model.label != "Popular") {
             submitBtnSetup.model.label = "Popular";
@@ -477,6 +484,7 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
                         newDetails += " - " + this.convertDuration(responseObj.items[0].contentDetails.duration);
                     if (responseObj.items[0].contentDetails.definition != null)
                         newDetails += " (" + responseObj.items[0].contentDetails.definition.toUpperCase() + ")";
+                    this.LastTappedVideoResolution = responseObj.items[0].contentDetails.definition.toUpperCase();
                     item.videoDetails = newDetails;
                     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
                     this.controller.modelChanged(listWidgetSetup.model);
@@ -568,7 +576,12 @@ MainAssistant.prototype.findNewFile = function(checkList) {
 //Ask MeTube to prepare a new video file for us
 MainAssistant.prototype.addFile = function(theFile) {
     //Mojo.Log.info("Time to submit a file request: " + theFile);
-    metubeModel.DoMeTubeAddRequest(theFile, function(response) {
+    var quality = "bestvideo";
+    if (appModel.AppSettingsCurrent["HDQuality"] != "bestvideo" && this.LastTappedVideoResolution == "HD")
+        quality = appModel.AppSettingsCurrent["HDQuality"];
+
+    Mojo.Log.info("QUALITY: " + quality + ", stored: " + appModel.AppSettingsCurrent["HDQuality"]);
+    metubeModel.DoMeTubeAddRequest(theFile, quality, function(response) {
         Mojo.Log.info("add response: " + response);
         if (response && response != "" && response.indexOf("status") != -1) {
             var responseObj = JSON.parse(response);

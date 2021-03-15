@@ -37,13 +37,15 @@ MetubeModel.prototype.buildURL = function(actionType) {
 }
 
 //HTTP request for add file
-MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, callback) {
+MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, callback) {
+    if (!quality)
+        quality = "bestvideo";
 
     var useURL = this.buildURL("add");
     if (videoURL.indexOf("reddit.com") != -1 || videoURL.indexOf("v.redd.it") != -1) {
         useURL = this.buildURL("add-reddit");
     }
-    Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL);
+    Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL + " at quality: " + quality);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
@@ -51,6 +53,7 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, callback) {
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("POST", useURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
+    xmlhttp.setRequestHeader("Quality", quality);
     xmlhttp.send(this.encodeRequest(videoURL));
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {

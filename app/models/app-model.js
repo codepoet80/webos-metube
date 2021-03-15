@@ -29,6 +29,7 @@ var AppModel = function() {
         SearchResultMax: 25,
         TimeoutMax: 15,
         PlaybackStrategy: "stream",
+        HDQuality: "bestvideo",
         FirstRun: true
     };
 }

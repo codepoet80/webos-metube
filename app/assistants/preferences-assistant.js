@@ -42,7 +42,7 @@ PreferencesAssistant.prototype.setup = function() {
             disabled: false
         }
     );
-    //Playback strategy result picker
+    //Playback strategy picker
     var strategyDefault = appModel.AppSettingsCurrent["PlaybackStrategy"];
     var strategyDisabled = false;
     if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2) {
@@ -61,6 +61,22 @@ PreferencesAssistant.prototype.setup = function() {
         this.model = {
             value: strategyDefault,
             disabled: strategyDisabled
+        }
+    );
+    //HD quality picker
+    var hdQuality = appModel.AppSettingsCurrent["HDQuality"];
+    var strategyDisabled = false;
+    this.controller.setupWidget("listHDQuality",
+        this.attributes = {
+            label: $L("HD Quality"),
+            choices: [
+                { label: "HQ", value: "bestvideo" },
+                { label: "LQ", value: "worstvideo" }
+            ]
+        },
+        this.model = {
+            value: hdQuality,
+            disabled: false
         }
     );
     //API Toggles
@@ -175,6 +191,7 @@ PreferencesAssistant.prototype.setup = function() {
     Mojo.Event.listen(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listStrategy"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
+    Mojo.Event.listen(this.controller.get("listHDQuality"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtGoogleAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtClientAPI"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("txtServerKey"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
@@ -200,6 +217,13 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
 
     Mojo.Log.info(event.srcElement.id + " value changed to " + event.value);
     switch (event.srcElement.id) {
+        case "listHDQuality":
+            {
+                if (Mojo.Environment.DeviceInfo.platformVersionMajor < 3 && event.value == "bestvideo") {
+                    Mojo.Additions.ShowDialogBox("Experimental Feature", "Most HD Videos do not play on phones. The LQ setting attempts to request a lower bitrate video that is still HD, to try to get more videos to play. It is recommended you leave this setting at LQ.");
+                }
+                break;
+            }
         case "toggleGoogleAPI":
             {
                 var thisWidgetSetup = this.controller.getWidgetSetup("txtGoogleAPI");
