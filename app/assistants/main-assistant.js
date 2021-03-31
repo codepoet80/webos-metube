@@ -188,7 +188,6 @@ MainAssistant.prototype.handleCommand = function(event) {
 
 //Handles the enter key
 MainAssistant.prototype.handleKeyUp = function(event) {
-    Mojo.Log.info("Enter key was pressed!");
     if (event && Mojo.Char.isEnterKey(event.keyCode)) {
         if (event.srcElement.parentElement.id == "txtSearch") {
             this.handleClick(event);
@@ -204,7 +203,6 @@ MainAssistant.prototype.handleTextInput = function(event, actualText) {
     if (!useVal) {
         useVal = $("txtSearch").mojo.getValue();
     }
-    Mojo.Log.info("text box is: " + useVal);
     if (actualText)
         useVal = actualText;
     Mojo.Log.info("handling text input of: " + useVal);
