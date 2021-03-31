@@ -63,13 +63,13 @@
 
 
 /*
- * Main Scene Styles
+ * Main Scene Styles, thanks to Silent Apps' Movie DB whose layout I borrowed
  */
 
 .main .palm-page-header-wrapper .icon {
     width: 76px;
     height: 75px;
-    background: url(../title-icon.png) center center no-repeat;
+    background: url(../images/title-icon.png) center center no-repeat;
 }
 
 .main .palm-page-header-wrapper .title {
