@@ -23,6 +23,20 @@ MainAssistant.prototype.setup = function() {
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     //TODO: We could be even more resilient if we saved this in a preference.
 
+    //New Search box
+    this.controller.setupWidget('txtSearch',
+        this.attributes = {
+            hintText: 'Search or enter a URL...',
+            multiline: false,
+            autoFocus: true,
+            changeOnKeyPress: true,
+            focusMode: Mojo.Widget.focusSelectMode
+        },
+        this.model = {
+            value: '',
+            disabled: false
+        }
+    );
     //Submit button - with global members for easy toggling later
     this.submitBtnAttrs = {};
     this.submitBtnModel = {
@@ -68,15 +82,18 @@ MainAssistant.prototype.setup = function() {
     this.controller.setupWidget(Mojo.Menu.appMenu, this.appMenuAttributes, this.appMenuModel);
 
     /* Always on Event handlers */
+    Mojo.Event.listen(this.controller.get("txtSearch"), Mojo.Event.propertyChange, this.handleTextInput.bind(this));
     Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
     Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageActivate, this.activateWindow.bind(this));
 
     // Non-Mojo widgets
-    $("imgSearchClear").addEventListener("click", this.handleClearTap.bind(this));
-    $("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
-    $("txtYoutubeURL").addEventListener("change", this.handleTextInput.bind(this));
-    $("txtYoutubeURL").addEventListener("paste", this.handleTextPaste.bind(this));
+    this.keyupHandler = this.handleKeyUp.bindAsEventListener(this);
+    this.controller.document.addEventListener("keyup", this.keyupHandler, true);
+    $("btnClear").addEventListener("click", this.handleClearTap.bind(this));
+    //$("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
+    //$("txtYoutubeURL").addEventListener("change", this.handleTextInput.bind(this));
+    //$("txtYoutubeURL").addEventListener("paste", this.handleTextPaste.bind(this));
     $("watchViewTitle").addEventListener(Mojo.Event.tap, this.scrollToTop.bind(this));
 
     //Check for updates
@@ -96,7 +113,7 @@ MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
 }
 
 MainAssistant.prototype.activate = function(event) {
-    document.body.style.backgroundColor = "black";
+    document.body.style.backgroundColor = "#313131";
     //Load preferences
     appModel.LoadSettings();
     Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
@@ -141,7 +158,7 @@ MainAssistant.prototype.activate = function(event) {
     }
 
     //Get ready for input (and deal with launch parameter input)
-    $("txtYoutubeURL").focus();
+    //$("txtYoutubeURL").focus();
 };
 
 MainAssistant.prototype.activateWindow = function(event) { //This is needed for handling a re-launch with parameters
@@ -154,7 +171,8 @@ MainAssistant.prototype.handleLaunchQuery = function() {
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
         //$("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
-        $("txtYoutubeURL").value = appModel.LaunchQuery;
+        //$("txtYoutubeURL").value = appModel.LaunchQuery;
+        $("txtSearch").mojo.setValue(appModel.LaunchQuery);
         Mojo.Log.info("set textbox to: " + appModel.LaunchQuery);
         this.handleTextInput(null, appModel.LaunchQuery);
         this.handleClick();
@@ -177,9 +195,26 @@ MainAssistant.prototype.handleCommand = function(event) {
     }
 };
 
+//Handles the enter key
+MainAssistant.prototype.handleKeyUp = function(event) {
+    Mojo.Log.info("Enter key was pressed!");
+    if (event && Mojo.Char.isEnterKey(event.keyCode)) {
+        if (event.srcElement.parentElement.id == "txtSearch") {
+            this.handleClick(event);
+        }
+    }
+};
+
 MainAssistant.prototype.handleTextInput = function(event, actualText) {
     var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
-    var useVal = $("txtYoutubeURL").value;
+    //var useVal = $("txtYoutubeURL").value;
+    var useVal = "";
+    if (event && event.value)
+        useVal = event.value;
+    if (!useVal) {
+        useVal = $("txtSearch").mojo.getValue();
+    }
+    Mojo.Log.info("text box is: " + useVal);
     if (actualText)
         useVal = actualText;
     Mojo.Log.info("handling text input of: " + useVal);
@@ -215,7 +250,9 @@ MainAssistant.prototype.handleClick = function(event) {
     var stageController = Mojo.Controller.getAppController().getActiveStageController();
     if (stageController) {
         this.controller = stageController.activeScene();
-        videoRequest = $("txtYoutubeURL").value;
+        var videoRequest = $("txtSearch").mojo.getValue();
+        Mojo.Log.info("search text was: " + videoRequest);
+
         videoRequest = this.checkForSpecialCases(videoRequest);
 
         //If this is a URL
@@ -246,7 +283,8 @@ MainAssistant.prototype.handleClearTap = function() {
     this.cancelDownload = true;
 
     //Reset the text box
-    $("txtYoutubeURL").value = "";
+    //$("txtYoutubeURL").value = "";
+    $("txtSearch").mojo.setValue("");
     var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
     submitBtnSetup.model.label = "Popular";
     this.controller.modelChanged(submitBtnSetup.model);
@@ -266,7 +304,7 @@ MainAssistant.prototype.handleClearTap = function() {
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
 
-    $("txtYoutubeURL").focus();
+    //$("txtYoutubeURL").focus();
 }
 
 //Handle list item taps
@@ -279,7 +317,8 @@ MainAssistant.prototype.handleListClick = function(event) {
         if (event.originalEvent.target.className == "checkmark true") { //if the tap was on the checkmark, uncheck it
             Mojo.Log.info("uncheck item!");
             event.item.selectedState = false;
-            $("txtYoutubeURL").value = this.SearchValue;
+            //$("txtYoutubeURL").value = this.SearchValue;
+            $("txtSearch").mojo.setValue(this.SearchValue);
             this.handleTextInput(event, this.SearchValue);
         } else { //otherwise, treat as a second tap and go to top
             this.scrollToTop();
@@ -292,7 +331,8 @@ MainAssistant.prototype.handleListClick = function(event) {
         var videoVal = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
         if (event.item.videoDetails.indexOf(" -") == -1 && event.item.videoDetails.indexOf(" ("))
             this.updateVideoDetails(event.item, event.item.youtubeId)
-        $("txtYoutubeURL").value = videoVal;
+            //$("txtYoutubeURL").value = videoVal;
+        $("txtSearch").mojo.setValue(videoVal);
         this.handleTextInput(event, videoVal);
     }
     //Update UI
@@ -678,7 +718,8 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
         onSuccess: function(response) {
             Mojo.Log.info("Video download success", JSON.stringify(response));
             if (response.completed && (response.completionStatusCode == 200 || response.amountReceived == response.amountTotal)) {
-                $("txtYoutubeURL").focus();
+                //$("txtYoutubeURL").focus();
+                $("txtSearch").mojo.focus();
                 this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
             } else {
                 if (this.cancelDownload) {
@@ -712,7 +753,7 @@ MainAssistant.prototype.deactivate = function(event) {
     Mojo.Event.stopListening(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick);
     Mojo.Event.stopListening(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick);
     // Non-Mojo widgets
-    $("imgSearchClear").removeEventListener("click", this.handleClearTap);
+    $("btnClear").removeEventListener("click", this.handleClearTap);
 };
 
 MainAssistant.prototype.cleanup = function(event) {

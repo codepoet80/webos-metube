@@ -1,12 +1,44 @@
-<div class="palm-hasheader" style="margin-bottom:60px">
-    <div id="watchViewTitle" class="palm-header center">
-        MeTube
+<div class="main">
+    <div class="palm-page-header multi-line">
+        <div class="palm-page-header-wrapper">
+            <div class="icon"></div>
+            <div class="title main" id="main-title">
+                MeTube
+                <span class="version" id="main-version"></span>
+            </div>
+            <div class="title sub" id="subTitle">YouTube and Reddit videos for webOS</div>
+        </div>
     </div>
-</div>
+    <!--
 <div style="width:100%; margin:auto; align-content: center; text-align: center;">
     <img src="icon.png" /><br/>
     <span x-mojo-loc='' class="palm-group-title with-icon">Search YouTube, or enter a YouTube URL &nbsp;&nbsp;</span>
 </div>
+-->
+
+    <div class="palm-group">
+        <div class="palm-group-title">Search</div>
+        <div class="palm-list">
+            <div class="palm-row first">
+                <div class="palm-row-wrapper textfield-group" x-mojo-focus-highlight="true">
+                    <div class="title">
+                        <div class="search-bar">
+                            <div id="btnClear" class="icon right submit" style="visibility:visible;position:relative;z-index:1" x-mojo-touch-feedback="immediate"></div>
+                            <div class="textfield-search" id="txtSearch" x-mojo-element="TextField"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palm-row last">
+                <div class="palm-row-wrapper" style="margin-left: 20%; margin-right: 20%">
+                    <div x-mojo-element="Button" id="btnGetVideo" class="buttonClass" name="btnGetVideo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--
 <div class="palm-group" style="margin-top: -20px;">
     <div class="palm-list">
 
@@ -27,15 +59,17 @@
 
     </div>
 </div>
+-->
 
-<div id="showResultsList" name="showResultsList" style="display:none">
-    <div id="searchResultsList" x-mojo-element="List"></div>
-</div>
+    <div id="showResultsList" name="showResultsList" style="display:none">
+        <div id="searchResultsList" x-mojo-element="List"></div>
+    </div>
 
-<div id="divSpinnerContainer" style="width: 130px;margin-left: auto;margin-right: auto; align-items: center;">
-    <div x-mojo-element="Spinner" class="spinnerClass" id="workingSpinner" name="workingSpinner"></div>
-</div>
+    <div id="divSpinnerContainer" style="width: 130px;margin-left: auto;margin-right: auto; align-items: center;">
+        <div x-mojo-element="Spinner" class="spinnerClass" id="workingSpinner" name="workingSpinner"></div>
+    </div>
 
-<div id="divWorkingStatus" style="width: 70px;margin-left: auto;margin-right: auto; margin-top:-78px; align-items: center;display:none">
-    <div id="divStatusValue" name="divStatusValue" style="text-align: center;color:darkgray;"></div>
+    <div id="divWorkingStatus" style="width: 70px;margin-left: auto;margin-right: auto; margin-top:-78px; align-items: center;display:none">
+        <div id="divStatusValue" name="divStatusValue" style="text-align: center;color:darkgray;"></div>
+    </div>
 </div>
