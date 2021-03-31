@@ -91,10 +91,6 @@ MainAssistant.prototype.setup = function() {
     this.keyupHandler = this.handleKeyUp.bindAsEventListener(this);
     this.controller.document.addEventListener("keyup", this.keyupHandler, true);
     $("btnClear").addEventListener("click", this.handleClearTap.bind(this));
-    //$("txtYoutubeURL").addEventListener("keyup", this.handleTextInput.bind(this));
-    //$("txtYoutubeURL").addEventListener("change", this.handleTextInput.bind(this));
-    //$("txtYoutubeURL").addEventListener("paste", this.handleTextPaste.bind(this));
-    $("watchViewTitle").addEventListener(Mojo.Event.tap, this.scrollToTop.bind(this));
 
     //Check for updates
     if (!appModel.UpdateCheckDone) {
@@ -156,9 +152,6 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2 || appModel.AppSettingsCurrent["PlaybackStrategy"] == "download") {
         this.DownloadFirst = true;
     }
-
-    //Get ready for input (and deal with launch parameter input)
-    //$("txtYoutubeURL").focus();
 };
 
 MainAssistant.prototype.activateWindow = function(event) { //This is needed for handling a re-launch with parameters
@@ -170,8 +163,6 @@ MainAssistant.prototype.handleLaunchQuery = function() {
     //handle launch with search query
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
-        //$("txtYoutubeURL").setAttribute('value', appModel.LaunchQuery);
-        //$("txtYoutubeURL").value = appModel.LaunchQuery;
         $("txtSearch").mojo.setValue(appModel.LaunchQuery);
         Mojo.Log.info("set textbox to: " + appModel.LaunchQuery);
         this.handleTextInput(null, appModel.LaunchQuery);
@@ -207,7 +198,6 @@ MainAssistant.prototype.handleKeyUp = function(event) {
 
 MainAssistant.prototype.handleTextInput = function(event, actualText) {
     var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
-    //var useVal = $("txtYoutubeURL").value;
     var useVal = "";
     if (event && event.value)
         useVal = event.value;
@@ -283,7 +273,6 @@ MainAssistant.prototype.handleClearTap = function() {
     this.cancelDownload = true;
 
     //Reset the text box
-    //$("txtYoutubeURL").value = "";
     $("txtSearch").mojo.setValue("");
     var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
     submitBtnSetup.model.label = "Popular";
@@ -303,8 +292,6 @@ MainAssistant.prototype.handleClearTap = function() {
 
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
-
-    //$("txtYoutubeURL").focus();
 }
 
 //Handle list item taps
@@ -317,7 +304,6 @@ MainAssistant.prototype.handleListClick = function(event) {
         if (event.originalEvent.target.className == "checkmark true") { //if the tap was on the checkmark, uncheck it
             Mojo.Log.info("uncheck item!");
             event.item.selectedState = false;
-            //$("txtYoutubeURL").value = this.SearchValue;
             $("txtSearch").mojo.setValue(this.SearchValue);
             this.handleTextInput(event, this.SearchValue);
         } else { //otherwise, treat as a second tap and go to top
@@ -331,7 +317,6 @@ MainAssistant.prototype.handleListClick = function(event) {
         var videoVal = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
         if (event.item.videoDetails.indexOf(" -") == -1 && event.item.videoDetails.indexOf(" ("))
             this.updateVideoDetails(event.item, event.item.youtubeId)
-            //$("txtYoutubeURL").value = videoVal;
         $("txtSearch").mojo.setValue(videoVal);
         this.handleTextInput(event, videoVal);
     }
@@ -494,7 +479,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             } else if (this.DeviceType == "Tiny") {
                 newItem.videoName = this.cleanupString(newItem.videoName, 38);
                 newItem.imageWidth = "120px";
-                newItem.titleMargin = "128px";
+                newItem.titleMargin = "116px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else {
                 newItem.imageWidth = "100px";
@@ -718,7 +703,6 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
         onSuccess: function(response) {
             Mojo.Log.info("Video download success", JSON.stringify(response));
             if (response.completed && (response.completionStatusCode == 200 || response.amountReceived == response.amountTotal)) {
-                //$("txtYoutubeURL").focus();
                 $("txtSearch").mojo.focus();
                 this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
             } else {
