@@ -287,6 +287,7 @@ MainAssistant.prototype.handleClearTap = function() {
     $("showResultsList").style.display = "none";
 
     this.enableUI();
+    setTimeout("$('txtSearch').mojo.focus();", 100);
 
     //TODO: maybe we should try to cancel any launches or downloads too
 
