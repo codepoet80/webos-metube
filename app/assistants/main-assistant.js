@@ -863,7 +863,37 @@ MainAssistant.prototype.tryLaunchURLAssist = function(event) {
             params: {}
         },
         onFailure: function(response) {
-            Mojo.Additions.ShowDialogBox("URL Assist Not Found", "MeTube can be configured to handle YouTube or Reddit video URLs, but it requires a helper app called <b>URL Assist</b>, which wasn't found on your device.<br>Download <b>URL Assist</b> from App Museum II to configure this option.");
+            updaterModel.CheckForUpdate("URL Assist", function(updaterResponse) {
+                if (updaterResponse && updaterResponse.downloadURI) {
+                    var stageController = Mojo.Controller.getAppController().getActiveStageController();
+                    if (stageController) {
+                        this.controller = stageController.activeScene();
+
+                        this.controller.showAlertDialog({
+                            title: "URL Assist Not Found",
+                            message: "MeTube can be configured to handle YouTube or Reddit video URLs, but it requires a helper app called <b>URL Assist</b>, which wasn't found on your device. Do you want to download it now?",
+                            choices: [{
+                                    label: 'Yes',
+                                    value: true
+                                },
+                                {
+                                    label: 'No',
+                                    value: false
+                                }
+                            ],
+                            allowHTMLMessage: true,
+                            onChoose: function(value) {
+                                if (value) {
+                                    //launch preware with URL
+                                }
+                            }.bind(this),
+                        });
+                    }
+                } else {
+                    Mojo.Additions.ShowDialogBox("URL Assist Not Found", "MeTube can be configured to handle YouTube or Reddit video URLs, but it requires a helper app called <b>URL Assist</b>, which wasn't found on your device.<br>Download <b>URL Assist</b> from App Museum II to configure this option.");
+                }
+            }.bind(this))
+
         }.bind(this)
     });
 };
