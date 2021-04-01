@@ -1,6 +1,6 @@
 /*
 Updater Model - Mojo
- Version 0.3
+ Version 0.4
  Created: 2020
  Author: Jonathan Wise
  License: MIT
@@ -109,23 +109,27 @@ UpdaterModel.prototype.InstallUpdate = function(callBack) {
         var app = this.lastUpdateResponse.downloadURI;
         Mojo.Log.info("Asking PreWare to perform update to " + app);
 
-        //Ask webOS to launch the video player with the new url
-        this.prewareRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
-            method: "open",
-            parameters: {
-                "id": "org.webosinternals.preware",
-                params: { type: "install", file: app }
-            },
-            onSuccess: function(response) {
-                Mojo.Log.info("Preware launch success", JSON.stringify(response));
-            },
-            onFailure: function(response) {
-                Mojo.Log.error("Preware launch failure, " + videoURL + ":",
-                    JSON.stringify(response), response.errorText);
-            }
-        });
+        this.InstallViaPreware(app);
         return true;
     }
+}
+
+UpdaterModel.prototype.InstallViaPreware = function(app) {
+    //Ask webOS to launch the video player with the new url
+    this.prewareRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
+        method: "open",
+        parameters: {
+            "id": "org.webosinternals.preware",
+            params: { type: "install", file: app }
+        },
+        onSuccess: function(response) {
+            Mojo.Log.info("Preware launch success", JSON.stringify(response));
+        },
+        onFailure: function(response) {
+            Mojo.Log.error("Preware launch failure, " + videoURL + ":",
+                JSON.stringify(response), response.errorText);
+        }
+    });
 }
 
 /* "Private" helper functions */

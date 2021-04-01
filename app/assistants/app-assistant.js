@@ -7,6 +7,7 @@ var metubeModel = null;
 
 function AppAssistant() {
     appModel = new AppModel();
+    urlAssistModel = new URLAssistModel();
     updaterModel = new UpdaterModel();
     metubeModel = new MetubeModel();
     Mojo.Additions = Additions;
