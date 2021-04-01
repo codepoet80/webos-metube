@@ -75,6 +75,7 @@ MainAssistant.prototype.setup = function() {
         label: "Settings",
         items: [
             Mojo.Menu.editItem,
+            { label: "Handle URLs", chosen: false, command: 'do-HandleURLs' },
             { label: "Preferences", command: 'do-Preferences' },
             { label: "About", command: 'do-myAbout' }
         ]
@@ -110,6 +111,9 @@ MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
 
 MainAssistant.prototype.activate = function(event) {
     document.body.style.backgroundColor = "#313131";
+    //Check URL handling
+    this.checkURLHandling();
+
     //Load preferences
     appModel.LoadSettings();
     Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
@@ -179,6 +183,9 @@ MainAssistant.prototype.handleLaunchQuery = function() {
 MainAssistant.prototype.handleCommand = function(event) {
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
+            case 'do-HandleURLs':
+                this.tryLaunchURLAssist();
+                break;
             case 'do-Preferences':
                 var stageController = Mojo.Controller.stageController;
                 stageController.pushScene({ name: "preferences", disableSceneScroller: false });
@@ -818,3 +825,45 @@ MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
     useTitle = useTitle.replace(".mp4", "");
     return useTitle;
 }
+
+MainAssistant.prototype.checkURLHandling = function(url) {
+    if (!url)
+        url = "https://www.youtube.com/watch?v=VYVz2qa30G0";
+
+    this.serviceRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
+        method: "listAllHandlersForUrl",
+        parameters: {
+            "url": url
+        },
+        onSuccess: function(responseObj) {
+            if (responseObj && responseObj.redirectHandlers) {
+                var found = false;
+                if (responseObj.redirectHandlers.activeHandler.appId == Mojo.Controller.appInfo.id) {
+                    found = true;
+                    Mojo.Log.info("Checked URL handler, " + Mojo.Controller.appInfo.id + " found!");
+
+                    this.appMenuModel.items[1].chosen = true;
+                    this.controller.modelChanged(this.appMenuModel);
+                }
+            } else {
+                Mojo.Log.warn("Unexpected payload in system service request");
+            }
+        }.bind(this),
+        onFailure: function(response) {
+            Mojo.Log.error("URL handler list failure: " + JSON.stringify(response));
+        }.bind(this)
+    });
+}
+
+MainAssistant.prototype.tryLaunchURLAssist = function(event) {
+    this.controller.serviceRequest("palm://com.palm.applicationManager", {
+        method: "launch",
+        parameters: {
+            id: "com.palm.app.jonandnic.urlassist",
+            params: {}
+        },
+        onFailure: function(response) {
+            Mojo.Additions.ShowDialogBox("URL Assist Not Found", "MeTube can be configured to handle YouTube or Reddit video URLs, but it requires a helper app called <b>URL Assist</b>, which wasn't found on your device.<br>Download <b>URL Assist</b> from App Museum II to configure this option.");
+        }.bind(this)
+    });
+};
