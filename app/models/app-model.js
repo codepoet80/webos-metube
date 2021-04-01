@@ -30,6 +30,7 @@ var AppModel = function() {
         TimeoutMax: 15,
         PlaybackStrategy: "stream",
         HDQuality: "bestvideo",
+        HDWarningShown: false,
         FirstRun: true
     };
 }

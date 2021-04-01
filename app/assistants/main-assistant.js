@@ -124,13 +124,17 @@ MainAssistant.prototype.activate = function(event) {
     if (appModel.AppSettingsCurrent["FirstRun"]) {
         appModel.AppSettingsCurrent["FirstRun"] = false;
         appModel.SaveSettings();
-        Mojo.Additions.ShowDialogBox("Welcome to MeTube!", "webOS MeTube is a client for a MeTube service running on a remote server. You can use the community server for free, but be aware there is no expectation of performance or privacy. You can also use your own server if you want. If you experience crashes, try changing the playback strategy in Preferences (not available on webOS 1.x). Enjoy!")
+        Mojo.Additions.ShowDialogBox("Welcome to MeTube!", "webOS MeTube is a client for a MeTube service running on a remote server. You can host your own server, or use the community server (default) for free, but be aware there is no expectation of performance or privacy.<br>Each webOS device/version has different video playback capabilities, experiment with Preferences (some are disabled on webOS 1.x) to improve your experience. Enjoy!")
+    }
+    if (!appModel.AppSettingsCurrent["HDWarningShown"]) {
+        this.HDWarningShown = false;
     }
 
     //find out what kind of device this is
     if (Mojo.Environment.DeviceInfo.platformVersionMajor >= 3) {
         this.DeviceType = "TouchPad";
         Mojo.Log.info("Device detected as TouchPad");
+        this.HDWarningShown = true;
         if (!appModel.AppSettingsCurrent["HDQuality"])
             appModel.AppSettingsCurrent["HDQuality"] = "bestvideo";
     } else {
@@ -512,6 +516,12 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
                     item.videoDetails = newDetails;
                     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
                     this.controller.modelChanged(listWidgetSetup.model);
+
+                    if (this.LastTappedVideoResolution == "HD" && !appModel.AppSettingsCurrent["HDWarningShown"]) {
+                        Mojo.Additions.ShowDialogBox("HD Video Compatibility", "You've selected a HD video on a non-HD device. This doesn't necessarily mean it won't work, but it might not -- and YouTube doesn't provide any details that would help determine this. If it doesn't work, try another video, or look for a version of this video that shows as SD when you tap on it.<br>This message won't be shown again.");
+                        appModel.AppSettingsCurrent["HDWarningShown"] = true;
+                        appModel.SaveSettings();
+                    }
                 } else {
                     Mojo.Log.warn("Details response was missing expected content. This may indicate the YouTube APIs have changed.");
                 }
