@@ -2,8 +2,9 @@ var URLAssistModel = function() {
 
 };
 
-URLAssistModel.prototype.checkURLHandling = function(url) {
-    if (!url)
+//Check to see if this app is registered for handling a given URL
+URLAssistModel.prototype.checkURLHandling = function(url, success, failure) {
+    if (!url || url == "")
         url = "https://www.youtube.com/watch?v=VYVz2qa30G0";
 
     this.serviceRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
@@ -17,34 +18,38 @@ URLAssistModel.prototype.checkURLHandling = function(url) {
                 if (responseObj.redirectHandlers.activeHandler.appId == Mojo.Controller.appInfo.id) {
                     found = true;
                     Mojo.Log.info("Checked URL handler, " + Mojo.Controller.appInfo.id + " found!");
-
-                    this.appMenuModel.items[1].chosen = true;
-                    this.controller.modelChanged(this.appMenuModel);
+                    if (success)
+                        success(responseObj);
                 }
+                if (!found)
+                    failure(responseObj);
             } else {
                 Mojo.Log.warn("Unexpected payload in system service request");
+                if (failure)
+                    failure(responseObj);
             }
         }.bind(this),
-        onFailure: function(response) {
+        onFailure: function(responseObj) {
             Mojo.Log.error("URL handler list failure: " + JSON.stringify(response));
+            failure(responseObj);
         }.bind(this)
     });
 }
 
-URLAssistModel.prototype.tryLaunchURLAssist = function(event) {
-    this.controller.serviceRequest("palm://com.palm.applicationManager", {
+//Try to Launch URL Assist, or offer to get from App Museum II if not available
+URLAssistModel.prototype.tryLaunchURLAssist = function(updater) {
+    this.serviceRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
         method: "launch",
         parameters: {
             id: "com.palm.app.jonandnic.urlassist",
             params: {}
         },
         onFailure: function(response) {
-            updaterModel.CheckForUpdate("URL Assist", function(updaterResponse) {
+            updater.CheckForUpdate("URL Assist", function(updaterResponse) {
                 if (updaterResponse && updaterResponse.downloadURI) {
                     var stageController = Mojo.Controller.getAppController().getActiveStageController();
                     if (stageController) {
                         this.controller = stageController.activeScene();
-
                         this.controller.showAlertDialog({
                             title: "URL Assist Not Found",
                             message: "MeTube can be configured to handle YouTube or Reddit video URLs, but it requires a helper app called <b>URL Assist</b>, which wasn't found on your device. Do you want to download it from App Museum II now? (requires Preware)",
@@ -61,7 +66,11 @@ URLAssistModel.prototype.tryLaunchURLAssist = function(event) {
                             onChoose: function(value) {
                                 if (value) {
                                     //launch preware with URL
-                                    updaterModel.InstallViaPreware(updaterResponse.downloadURI)
+                                    updater.InstallViaPreware(updaterResponse.downloadURI, function(success) {
+                                        if (!success) {
+                                            Mojo.Controller.getAppController().showBanner({ messageText: "Preware launch failure, check install." }, "", "");
+                                        }
+                                    }.bind(this));
                                 }
                             }.bind(this),
                         });

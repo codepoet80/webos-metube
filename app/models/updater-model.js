@@ -114,7 +114,7 @@ UpdaterModel.prototype.InstallUpdate = function(callBack) {
     }
 }
 
-UpdaterModel.prototype.InstallViaPreware = function(app) {
+UpdaterModel.prototype.InstallViaPreware = function(app, callback) {
     //Ask webOS to launch the video player with the new url
     this.prewareRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
         method: "open",
@@ -124,11 +124,12 @@ UpdaterModel.prototype.InstallViaPreware = function(app) {
         },
         onSuccess: function(response) {
             Mojo.Log.info("Preware launch success", JSON.stringify(response));
-        },
+            callback(true)
+        }.bind(this),
         onFailure: function(response) {
-            Mojo.Log.error("Preware launch failure, " + videoURL + ":",
-                JSON.stringify(response), response.errorText);
-        }
+            Mojo.Log.error("Preware launch failure, " + app + ":", JSON.stringify(response), response.errorText);
+            callback(false);
+        }.bind(this)
     });
 }
 

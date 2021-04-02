@@ -164,7 +164,15 @@ MainAssistant.prototype.activateWindow = function(event) { //This is needed for 
     Mojo.Log.info("Stage re-activated!");
     this.handleLaunchQuery();
     //Check URL handling
-    urlAssistModel.checkURLHandling();
+    urlAssistModel.checkURLHandling(null,
+        function(response) {
+            this.appMenuModel.items[1].chosen = true;
+            this.controller.modelChanged(this.appMenuModel);
+        }.bind(this),
+        function(response) {
+            this.appMenuModel.items[1].chosen = false;
+            this.controller.modelChanged(this.appMenuModel);
+        }.bind(this));
 };
 
 MainAssistant.prototype.handleLaunchQuery = function() {
@@ -184,7 +192,7 @@ MainAssistant.prototype.handleCommand = function(event) {
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
             case 'do-HandleURLs':
-                urlAssistModel.tryLaunchURLAssist();
+                urlAssistModel.tryLaunchURLAssist(updaterModel);
                 break;
             case 'do-Preferences':
                 var stageController = Mojo.Controller.stageController;
