@@ -582,7 +582,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
                 checkList = responseObj;
                 var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
                 if (this.RequestConvert)
-                    useTimeout = useTimeout + 30; //Allow extra time for conversion if requested
+                    useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
                 Mojo.Log.info("Checking for new files with convert=" + this.RequestConvert + ", attempt " + this.timeOutCount + "/" + useTimeout);
                 if (this.timeOutCount <= useTimeout) {
                     if (checkList.files && checkList.files.length > this.FileList.files.length) {
