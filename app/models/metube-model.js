@@ -37,7 +37,7 @@ MetubeModel.prototype.buildURL = function(actionType) {
 }
 
 //HTTP request for add file
-MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, callback) {
+MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, convert, callback) {
     if (!quality)
         quality = "bestvideo";
 
@@ -45,7 +45,7 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, callback)
     if (videoURL.indexOf("reddit.com") != -1 || videoURL.indexOf("v.redd.it") != -1) {
         useURL = this.buildURL("add-reddit");
     }
-    Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL + " at quality: " + quality);
+    Mojo.Log.info("Requesting YouTube video: " + videoURL + " from " + useURL + " at quality: " + quality + " with conversion flag: " + convert);
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
@@ -53,6 +53,7 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, callback)
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("POST", useURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
+    xmlhttp.setRequestHeader("Convert", convert);
     xmlhttp.setRequestHeader("Quality", quality);
     xmlhttp.send(this.encodeRequest(videoURL));
     xmlhttp.onreadystatechange = function() {
@@ -60,7 +61,7 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, callback)
             if (xmlhttp.status == 404) {
                 Mojo.Log.error("Service returned 404 requesting video details. If the service is online, there's probably a version mismatch between service and client.");
                 if (this.ServiceCompatWarning == 0) {
-                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end out of date, video source not suppored." }, "", "");
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, video source not suppored." }, "", "");
                     this.ServiceCompatWarning++;
                 }
             } else {
@@ -131,7 +132,7 @@ MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
             if (xmlhttp.status == 404) {
                 Mojo.Log.error("Service returned 404 requesting video details. If the service is online, there's probably a version mismatch between service and client.");
                 if (this.ServiceCompatWarning == 0) {
-                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end out of date, can't get details" }, "", "");
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, can't get details" }, "", "");
                     this.ServiceCompatWarning++;
                 }
             } else {
@@ -144,7 +145,6 @@ MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
 
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
-    Mojo.Log.info("using client key: " + this.getCurrentClientKey());
     videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);
     videoURL = this.buildURL("play") + "?video=" + videoURL;
     Mojo.Log.info("Actual video request is: " + videoURL);

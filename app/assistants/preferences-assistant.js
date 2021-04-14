@@ -220,10 +220,10 @@ PreferencesAssistant.prototype.handleValueChange = function(event) {
         case "listHDQuality":
             {
                 if (Mojo.Environment.DeviceInfo.platformVersionMajor < 3 && event.value == "bestvideo") {
-                    Mojo.Additions.ShowDialogBox("Experimental Feature", "Most HD Videos do not play on phones. The LQ setting attempts to request a lower bitrate video that is still HD, to try to get more videos to play. It is recommended you leave this setting at LQ on phones.");
+                    Mojo.Additions.ShowDialogBox("Experimental Feature", "The LQ setting attempts to request a lower bitrate video which may convert faster. It is recommended you leave this setting at LQ on phones since you are unlikely to see a difference.");
                 }
                 if (Mojo.Environment.DeviceInfo.platformVersionMajor == 3 && event.value == "worstvideo") {
-                    Mojo.Additions.ShowDialogBox("Experimental Feature", "Most HD Videos do not play on phones. The LQ setting attempts to request a lower bitrate video that is still HD, to try to get more videos to play. It is recommended you leave this setting at HQ on TouchPad.");
+                    Mojo.Additions.ShowDialogBox("Experimental Feature", "The LQ setting attempts to request a lower bitrate video which may convert faster. It is recommended you leave this setting at HQ on TouchPad.");
                 }
                 break;
             }

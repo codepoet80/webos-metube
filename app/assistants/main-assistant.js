@@ -19,7 +19,9 @@ MainAssistant.prototype.setup = function() {
     this.FileCheckInt;
     this.SearchValue = "";
     this.DownloadFirst = false;
+    this.RequestConvert = false;
     this.FileList = [];
+    this.FileToFind = false;
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     //TODO: We could be even more resilient if we saved this in a preference.
 
@@ -76,6 +78,7 @@ MainAssistant.prototype.setup = function() {
         items: [
             Mojo.Menu.editItem,
             { label: "Handle URLs", chosen: false, command: 'do-HandleURLs' },
+            { label: "Convert First", chosen: false, command: 'do-ConvertFirst' },
             { label: "Preferences", command: 'do-Preferences' },
             { label: "About", command: 'do-myAbout' }
         ]
@@ -189,10 +192,25 @@ MainAssistant.prototype.handleLaunchQuery = function() {
 
 //Handle menu and button bar commands
 MainAssistant.prototype.handleCommand = function(event) {
+
+
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
             case 'do-HandleURLs':
                 urlAssistModel.tryLaunchURLAssist(updaterModel);
+                break;
+            case 'do-ConvertFirst':
+                this.VideoRequests = []; //Clear out history of previously viewed files, since they might not work with newly selected method
+                if (this.appMenuModel.items[2].chosen) {
+                    this.appMenuModel.items[2].chosen = false;
+                    this.controller.modelChanged(this.appMenuModel);
+                    this.RequestConvert = false;
+                } else {
+                    this.appMenuModel.items[2].chosen = true;
+                    this.controller.modelChanged(this.appMenuModel);
+                    this.RequestConvert = true;
+                    Mojo.Additions.ShowDialogBox("Conversion Requested", "The server will attempt to convert videos for your device. Note that this is computationally expensive, impacts server performance for other users, and increases the delay before you can watch the video. In some cases, playback will timeout as a result. As such, this setting is temporary.")
+                }
                 break;
             case 'do-Preferences':
                 var stageController = Mojo.Controller.stageController;
@@ -224,7 +242,6 @@ MainAssistant.prototype.handleTextInput = function(event, actualText) {
     }
     if (actualText)
         useVal = actualText;
-    Mojo.Log.info("handling text input of: " + useVal);
     if (useVal == "") {
         if (submitBtnSetup.model.label != "Popular") {
             submitBtnSetup.model.label = "Popular";
@@ -258,7 +275,7 @@ MainAssistant.prototype.handleClick = function(event) {
     if (stageController) {
         this.controller = stageController.activeScene();
         var videoRequest = $("txtSearch").mojo.getValue();
-        Mojo.Log.info("search text was: " + videoRequest);
+        Mojo.Log.info("Search text was: " + videoRequest);
 
         videoRequest = this.checkForSpecialCases(videoRequest);
 
@@ -305,8 +322,6 @@ MainAssistant.prototype.handleClearTap = function() {
 
     this.enableUI();
     setTimeout("$('txtSearch').mojo.focus();", 100);
-
-    //TODO: maybe we should try to cancel any launches or downloads too
 
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
@@ -484,6 +499,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
         if (this.DeviceType == "TouchPad") {
             newItem.detailClass = "touchpad";
             newItem.imageWidth = "178px";
+            newItem.imgPos = "8px 2px !important";
             newItem.titleMargin = "182px";
             newItem.topMargin = "4px";
             newItem.thumbnail = results[i].snippet.thumbnails["medium"].url;
@@ -492,16 +508,19 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             newItem.topMargin = "-8px";
             if (this.DeviceType == "Pre3") {
                 newItem.imageWidth = "120px";
+                newItem.imgPos = "4px 10px !important";
                 newItem.titleMargin = "115px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else if (this.DeviceType == "Tiny") {
                 newItem.videoName = this.cleanupString(newItem.videoName, 38);
                 newItem.imageWidth = "120px";
+                newItem.imgPos = "4px 8px !important";
                 newItem.titleMargin = "116px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             } else {
                 newItem.imageWidth = "100px";
-                newItem.titleMargin = "95px";
+                newItem.imgPos = "8px 2px !important";
+                newItem.titleMargin = "110px";
                 newItem.thumbnail = results[i].snippet.thumbnails["default"].url;
             }
         }
@@ -533,7 +552,7 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
                     this.controller.modelChanged(listWidgetSetup.model);
 
                     if (this.LastTappedVideoResolution == "HD" && !appModel.AppSettingsCurrent["HDWarningShown"]) {
-                        Mojo.Additions.ShowDialogBox("HD Video Compatibility", "You've selected a HD video on a non-HD device. This doesn't necessarily mean it won't work, but it might not -- and YouTube doesn't provide any details that would help determine this. If it doesn't work, try another video, or look for a version of this video that shows as SD when you tap on it.<br>This message won't be shown again.");
+                        Mojo.Additions.ShowDialogBox("HD Video Compatibility", "You've selected a HD video on a non-HD device. This doesn't necessarily mean it won't work, but it might not. If it doesn't work, try turning on the Convert First option in the menu. It will take longer to get ready, but it has a very high chance of working after conversion.<br>This message won't be shown again until you restart the app.");
                         appModel.AppSettingsCurrent["HDWarningShown"] = true;
                         appModel.SaveSettings();
                     }
@@ -549,7 +568,6 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
 
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
-    Mojo.Log.info("Checking for new files...");
     metubeModel.DoMeTubeListRequest(function(response) {
         if (response && response != "") {
             var responseObj = JSON.parse(response);
@@ -559,28 +577,33 @@ MainAssistant.prototype.checkForNewFiles = function() {
                 Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the check file request with: " + responseObj.msg.replace("ERROR: ", ""));
             } else {
                 checkList = responseObj;
-                if (this.timeOutCount <= appModel.AppSettingsCurrent["TimeoutMax"]) {
+                var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
+                if (this.RequestConvert)
+                    useTimeout = useTimeout + 30; //Allow extra time for conversion if requested
+                Mojo.Log.info("Checking for new files with convert=" + this.RequestConvert + ", attempt " + this.timeOutCount + "/" + useTimeout);
+                if (this.timeOutCount <= useTimeout) {
                     if (checkList.files && checkList.files.length > this.FileList.files.length) {
                         Mojo.Log.info("A new file has appeared on the server!");
-                        clearInterval(this.FileCheckInt);
-                        var videoPath = this.findNewFile(checkList);
+                        var videoPath = this.findNewFile(checkList); //Find name of the new file
                         if (videoPath != null && videoPath != "") {
-                            //Calculate full URL
-                            if (videoPath.indexOf("|") != -1) {
-                                //TODO: DEVELOPER MODE
-                                videoPath = videoPath.split("|");
-                                videoPath = videoPath[0];
+                            if (videoPath == this.FileToFind || !this.FileToFind) {
+                                Mojo.Log.info("File selected! Found either the server specified file, or if not specified, the most recent file to appear. Figuring out how to play...")
+                                clearInterval(this.FileCheckInt);
+                                if (videoPath != null && videoPath != "") {
+                                    //Update video request history
+                                    updateVideoRequest = this.VideoRequests[this.VideoRequests.length - 1];
+                                    updateVideoRequest.videoPath = videoPath;
+                                    this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
+
+                                    //Play the video
+                                    this.playPreparedVideo(videoPath, true);
+                                }
+                            } else {
+                                Mojo.Log.warn("This is not the file the server said to watch for, continuing to check for new files...")
                             }
-
-                            //Update video request history (we're forced to assume this result is for the most recent request)
-                            updateVideoRequest = this.VideoRequests[this.VideoRequests.length - 1];
-                            updateVideoRequest.videoPath = videoPath;
-                            this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
-
-                            //Play the video
-                            this.playPreparedVideo(videoPath, true);
                         } else {
                             Mojo.Log.error("Unable to find a video file to play!");
+                            Mojo.Additions.ShowDialogBox("Server Response Problem", "Could not understand the file payload from the server response. The video cannot be found or played.");
                             clearInterval(this.FileCheckInt);
                             this.enableUI();
                         }
@@ -588,7 +611,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
                     this.timeOutCount++;
                 } else {
                     Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
-                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. Wait a few minutes and retry, or try a new request.");
+                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. You can increase the timeout in Preferences, or try a different video.");
                     clearInterval(this.FileCheckInt);
 
                     this.enableUI();
@@ -596,7 +619,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
             }
         } else {
             Mojo.Log.error("No usable response from server while checking for new files: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity and/or self-host settings.");
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity, proxy and/or self-host settings.");
             clearInterval(this.FileCheckInt);
 
             this.enableUI();
@@ -606,7 +629,7 @@ MainAssistant.prototype.checkForNewFiles = function() {
 
 //Identify which is the new file
 MainAssistant.prototype.findNewFile = function(checkList) {
-    //Mojo.Log.info("searching checkList for new files: " + JSON.stringify(checkList));
+    Mojo.Log.info("Searching for new file in list of " + checkList.files.length + " files...");
     var knownFiles = [];
     //Load our saved file list into an array for easy comparison
     for (var j = 0; j < this.FileList.files.length; j++) {
@@ -616,7 +639,6 @@ MainAssistant.prototype.findNewFile = function(checkList) {
     for (var i = 0; i < checkList.files.length; i++) {
         var checkFile = metubeModel.decodeResponse(checkList.files[i].file);
         if (knownFiles.indexOf(checkFile) == -1) {
-            Mojo.Log.info("New file found is: " + checkFile);
             return checkFile;
         }
     }
@@ -629,13 +651,23 @@ MainAssistant.prototype.addFile = function(theFile) {
     if (appModel.AppSettingsCurrent["HDQuality"] != "bestvideo" && this.LastTappedVideoResolution == "HD")
         quality = appModel.AppSettingsCurrent["HDQuality"];
 
-    Mojo.Log.info("QUALITY: " + quality + ", stored: " + appModel.AppSettingsCurrent["HDQuality"]);
-    metubeModel.DoMeTubeAddRequest(theFile, quality, function(response) {
-        Mojo.Log.info("add response: " + response);
+    Mojo.Log.info("QUALITY: " + quality + ", Preference: " + appModel.AppSettingsCurrent["HDQuality"]);
+    metubeModel.DoMeTubeAddRequest(theFile, quality, this.RequestConvert, function(response) {
         if (response && response != "" && response.indexOf("status") != -1) {
-            var responseObj = JSON.parse(response);
+            try {
+                var responseObj = JSON.parse(response);
+            } catch (e) {
+                Mojo.Log.error("Error parsing server response");
+                Mojo.Additions.ShowDialogBox("Parse Error", "The server response could not be parsed: " + response);
+            }
             if (responseObj.status == "ok") {
                 this.timeOutCount = 0;
+                if (responseObj.target && responseObj.target != "") {
+                    this.FileToFind = responseObj.target;
+                    Mojo.Log.warn("The server specified a file to watch for: " + this.FileToFind)
+                } else {
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, using old approach..." }, "", "");
+                }
                 //Start checking for new files on server
                 this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
             } else {
