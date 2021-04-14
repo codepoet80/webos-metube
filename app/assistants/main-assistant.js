@@ -192,8 +192,6 @@ MainAssistant.prototype.handleLaunchQuery = function() {
 
 //Handle menu and button bar commands
 MainAssistant.prototype.handleCommand = function(event) {
-
-
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
             case 'do-HandleURLs':
@@ -267,7 +265,6 @@ MainAssistant.prototype.handleTextPaste = function(event) {
 
 //Handle mojo button taps
 MainAssistant.prototype.handleClick = function(event) {
-
     this.disableUI();
 
     //figure out what was requested
@@ -366,6 +363,9 @@ MainAssistant.prototype.scrollToTop = function() {
 }
 
 MainAssistant.prototype.disableUI = function(statusValue) {
+
+    this.PreventDisplaySleep(); //Keep screen awake during video fetch, so deactivate doesn't get fired
+
     //start spinner (if not already spinning)
     if (this.spinnerModel && !this.spinnerModel.spinning) {
         this.spinnerModel.spinning = true;
@@ -387,6 +387,9 @@ MainAssistant.prototype.disableUI = function(statusValue) {
 }
 
 MainAssistant.prototype.enableUI = function() {
+
+    this.AllowDisplaySleep();
+
     //stop spinner
     if (this.spinnerModel) {
         this.spinnerModel.spinning = false;
@@ -864,4 +867,30 @@ MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
     useTitle = useTitle[0];
     useTitle = useTitle.replace(".mp4", "");
     return useTitle;
+}
+
+//Allow the display to sleep
+MainAssistant.prototype.AllowDisplaySleep = function(stageController) {
+    if (!stageController)
+        stageController = Mojo.Controller.getAppController().getActiveStageController();
+
+    //Tell the System it doesn't have to stay awake any more
+    Mojo.Log.info("Allowing display sleep");
+
+    stageController.setWindowProperties({
+        blockScreenTimeout: false
+    });
+}
+
+//Prevent the display from sleeping
+MainAssistant.prototype.PreventDisplaySleep = function(stageController) {
+    if (!stageController)
+        stageController = Mojo.Controller.getAppController().getActiveStageController();
+
+    //Ask the System to stay awake while timer is running
+    Mojo.Log.info("Preventing display sleep");
+
+    stageController.setWindowProperties({
+        blockScreenTimeout: true
+    });
 }
