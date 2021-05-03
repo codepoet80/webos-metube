@@ -8,11 +8,13 @@
 }
 
 .checkmark.true {
+    opacity: 1;
     visibility: visible;
 }
 
 .checkmark.false {
-    visibility: hidden;
+    visibility: visible;
+    opacity: 0.1;
 }
 
 .video-title {

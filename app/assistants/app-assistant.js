@@ -10,6 +10,7 @@ function AppAssistant() {
     urlAssistModel = new URLAssistModel();
     updaterModel = new UpdaterModel();
     metubeModel = new MetubeModel();
+    shareServiceModel = new ShareServiceModel();
     Mojo.Additions = Additions;
 }
 

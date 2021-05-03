@@ -90,6 +90,7 @@ MainAssistant.prototype.setup = function() {
     Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
     Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageActivate, this.activateWindow.bind(this));
+    Mojo.Event.listen(this.controller.get("showResultsList"), Mojo.Event.holdEnd, this.showPopupMenu.bind(this));
 
     // Non-Mojo widgets
     this.keyupHandler = this.handleKeyUp.bindAsEventListener(this);
@@ -161,6 +162,10 @@ MainAssistant.prototype.activate = function(event) {
     if (Mojo.Environment.DeviceInfo.platformVersionMajor < 2 || appModel.AppSettingsCurrent["PlaybackStrategy"] == "download") {
         this.DownloadFirst = true;
     }
+    //load recommendations (if there's no other query)
+    if (appModel.LaunchQuery == "") {
+        this.getMeTubeUserRecommendations();
+    }
 };
 
 MainAssistant.prototype.activateWindow = function(event) { //This is needed for handling a re-launch with parameters
@@ -190,7 +195,8 @@ MainAssistant.prototype.handleLaunchQuery = function() {
     }
 }
 
-//Handle menu and button bar commands
+//#region UI Handlers
+
 MainAssistant.prototype.handleCommand = function(event) {
     if (event.type == Mojo.Event.command) {
         switch (event.command) {
@@ -263,9 +269,36 @@ MainAssistant.prototype.handleTextPaste = function(event) {
     this.handleTextInput(event, event.clipboardData.getData('Text'));
 }
 
+MainAssistant.prototype.showPopupMenu = function(event) {
+
+    var itemsToShow = [
+        { label: 'Share', command: 'do-share' }
+    ]
+
+    this.controller.popupSubmenu({
+        onChoose: this.handlePopupChoose.bind(event.item),
+        placeNear: event.srcElement,
+        items: itemsToShow
+    });
+
+    return true;
+}
+
+MainAssistant.prototype.handlePopupChoose = function(command) {
+    Mojo.Log.info("pop-up command was: " + command + " last item was " + JSON.stringify(this.LastTappedVideo.originalData));
+    if (this.LastTappedVideo) {
+        shareServiceModel.DoShareAddRequest(JSON.stringify(this.LastTappedVideo.originalData), "application/json", function(response) {
+            if (response) {
+                Mojo.Controller.getAppController().showBanner({ messageText: "Video shared!" }, "notifications", "");
+            }
+        }.bind(this));
+    }
+}
+
 //Handle mojo button taps
 MainAssistant.prototype.handleClick = function(event) {
     this.disableUI();
+    $("spnResultsTitle").innerHTML = "Results";
 
     //figure out what was requested
     var stageController = Mojo.Controller.getAppController().getActiveStageController();
@@ -305,6 +338,7 @@ MainAssistant.prototype.handleClearTap = function() {
 
     //Reset the text box
     $("txtSearch").mojo.setValue("");
+
     var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
     submitBtnSetup.model.label = "Popular";
     this.controller.modelChanged(submitBtnSetup.model);
@@ -322,12 +356,13 @@ MainAssistant.prototype.handleClearTap = function() {
 
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
+
+    this.getMeTubeUserRecommendations();
 }
 
 //Handle list item taps
 MainAssistant.prototype.handleListClick = function(event) {
     //Mojo.Log.info("Item tapped with element class " + event.originalEvent.target.className + ": " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
-    this.LastTappedVideoTitle = event.item.videoName;
 
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
     if (event.item.selectedState) { //if items is selected and has been tapped
@@ -336,14 +371,16 @@ MainAssistant.prototype.handleListClick = function(event) {
             event.item.selectedState = false;
             $("txtSearch").mojo.setValue(this.SearchValue);
             this.handleTextInput(event, this.SearchValue);
+            this.LastTappedVideo = null;
         } else { //otherwise, treat as a second tap and go to top
             this.scrollToTop();
         }
-    } else { //item is unselected has been tapped
+    } else { //item is unselected and has been tapped
         for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
             listWidgetSetup.model.items[i].selectedState = false;
         }
         event.item.selectedState = true;
+        this.LastTappedVideo = event.item;
         var videoVal = "https://www.youtube.com/watch?v=" + event.item.youtubeId;
         if (event.item.videoDetails.indexOf(" -") == -1 && event.item.videoDetails.indexOf(" ("))
             this.updateVideoDetails(event.item, event.item.youtubeId)
@@ -355,7 +392,9 @@ MainAssistant.prototype.handleListClick = function(event) {
     return false;
 }
 
-/* UI Functions */
+//#endregion
+
+//#region UI Functions
 
 MainAssistant.prototype.scrollToTop = function() {
     Mojo.Log.info("scrolling to top!");
@@ -405,7 +444,9 @@ MainAssistant.prototype.enableUI = function() {
     this.controller.modelChanged(this.submitBtnModel);
 }
 
-/* Service Calls and Binding */
+//#endregion
+
+//#region Service Calls and Binding
 
 //Depending on history, either get previously accessed video, or request a new one from the service
 MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
@@ -487,6 +528,30 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
     }.bind(this));
 }
 
+MainAssistant.prototype.getMeTubeUserRecommendations = function() {
+    Mojo.Log.info("Getting MeTube User Recommendations from Sharing Service...");
+    $("spnResultsTitle").innerHTML = "Recommendations";
+    shareServiceModel.DoShareListRequest(function(response) {
+        Mojo.Log.info(response);
+        try {
+            var responseObj = JSON.parse(response);
+            if (responseObj.shares) {
+                var sharedItems = [];
+                for (var i = 0; i < responseObj.shares.length; i++) {
+                    Mojo.Log.info("shared item: " + JSON.stringify(responseObj.shares[i]));
+                    if (responseObj.shares[i].content)
+                        sharedItems.push(responseObj.shares[i].content)
+                }
+                this.updateSearchResultsList(sharedItems);
+            } else {
+                throw ("No items shared");
+            }
+        } catch (ex) {
+            Mojo.Log.warn("Shared recommendation list was empty or could not be loaded: " + ex);
+        }
+    }.bind(this));
+}
+
 //Update the UI with search results from Search Request
 MainAssistant.prototype.updateSearchResultsList = function(results) {
     Mojo.Log.info("Result body: " + JSON.stringify(results));
@@ -497,7 +562,8 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             youtubeId: results[i].id.videoId,
             videoName: this.decodeEntities(results[i].snippet.title),
             videoDetails: this.convertTimeStamp(results[i].snippet.publishedAt, true),
-            selectedState: false
+            selectedState: false,
+            originalData: results[i]
         }
         if (this.DeviceType == "TouchPad") {
             newItem.detailClass = "touchpad";
@@ -706,15 +772,15 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
     //otherwise its a file path
     Mojo.Log.warn("Using video target: " + videoURL);
     useTitle = "YouTube Video";
-    if (this.LastTappedVideoTitle)
-        useTitle = this.LastTappedVideoTitle;
+    if (this.LastTappedVideo.videoName)
+        useTitle = this.LastTappedVideo.videoName;
     else {
         if (isStream) {
             useTitle = this.makeFileNameFromDownloadURL(videoURL);
         }
     }
     Mojo.Log.info("Using video title: " + useTitle);
-    this.LastTappedVideoTitle = null;
+    this.LastTappedVideo = null;
 
     //Ask webOS to launch the video player with the new url
     this.videoRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
@@ -746,7 +812,7 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     this.cancelDownload = false;
 
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
-    this.LastTappedVideoTitle = this.makeFileNameFromDownloadURL(videoURL);
+    this.LastTappedVideo.videoName = this.makeFileNameFromDownloadURL(videoURL);
 
     //Ask webOS to download the video from the URL
     this.downloader = this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
@@ -788,7 +854,9 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     });
 }
 
-/* Lifecycle Stuff */
+//#endregion
+
+//#region Life Cycle Stuff
 
 MainAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
@@ -804,7 +872,9 @@ MainAssistant.prototype.cleanup = function(event) {
        a result of being popped off the scene stack */
 };
 
-/* Helper Functions */
+//#endregion
+
+//#region Helper Functions
 MainAssistant.prototype.checkForSpecialCases = function(videoRequest) {
     //Test cases
     if (videoRequest.indexOf("!") != -1)
@@ -894,3 +964,5 @@ MainAssistant.prototype.PreventDisplaySleep = function(stageController) {
         blockScreenTimeout: true
     });
 }
+
+//#endregion
