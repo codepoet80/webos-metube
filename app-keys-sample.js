@@ -2,7 +2,7 @@
 var appKeys = {
     'serverId': 'YOURSERVERKEY', //value should be base64 encoded
     'clientKey': 'YOURCLIENTKEY', //value should be base64 encoded
-    'shareBoardClientKey': 'YOURSHARESERVICEAPIKEY',
+    'shareBoardClientKey': 'YOURSHARESERVICEAPIKEY', //value should be base64 encoded
     'shareBoardUser': "YOURSHARESERVICEUSERNAME",
     'sharePhrase': 'YOURSHARESERVICESHAREPHRASE' //value should be base64 encoded
 };
