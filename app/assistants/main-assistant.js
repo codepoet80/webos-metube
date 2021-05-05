@@ -789,7 +789,7 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
     //otherwise its a file path
     Mojo.Log.warn("Using video target: " + videoURL);
     useTitle = "YouTube Video";
-    if (this.LastTappedVideo.videoName)
+    if (this.LastTappedVideo && this.LastTappedVideo.videoName)
         useTitle = this.LastTappedVideo.videoName;
     else {
         if (isStream) {
