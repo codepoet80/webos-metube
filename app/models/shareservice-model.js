@@ -138,14 +138,6 @@ ShareServiceModel.prototype.DoShareListRequest = function(callback) {
     }.bind(this);
 }
 
-//Form HTTP request URL for playback
-ShareServiceModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
-    videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);
-    videoURL = this.buildURL("play") + "?video=" + videoURL;
-    Mojo.Log.info("Actual video request is: " + videoURL);
-    return videoURL;
-}
-
 ShareServiceModel.prototype.getCurrentClientKey = function() {
     var retVal = atob(appKeys['shareBoardClientKey']);
     if (this.UseCustomEndpoint) {
