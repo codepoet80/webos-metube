@@ -1,6 +1,6 @@
 /*
 ShareBoard Model - Mojo
- Version 0.1
+ Version 0.1b
  Created: 2021
  Author: Jonathan Wise
  License: MIT
@@ -14,7 +14,7 @@ var ShareServiceModel = function() {
 //Properties
 ShareServiceModel.prototype.UseCustomShare = false;
 ShareServiceModel.prototype.CustomShareUser = "";
-ShareServiceModel.prototype.CustomSharePhrase = "";
+ShareServiceModel.prototype.CustomShareCredential = "";
 ShareServiceModel.prototype.UseCustomEndpoint = false;
 ShareServiceModel.prototype.CustomEndpointURL = "";
 ShareServiceModel.prototype.CustomClientId = "";
@@ -46,7 +46,7 @@ ShareServiceModel.prototype.DoShareAddRequest = function(content, contentType, c
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("POST", useURL);
     xmlhttp.setRequestHeader("client-id", this.getCurrentClientKey());
-    xmlhttp.setRequestHeader("share-phrase", this.getCurrentSharePhrase());
+    xmlhttp.setRequestHeader("credential", this.getCurrentCredential());
     xmlhttp.setRequestHeader("content-type", contentType);
     xmlhttp.send(content);
     xmlhttp.onreadystatechange = function() {
@@ -97,7 +97,7 @@ ShareServiceModel.prototype.DoShareListRequest = function(callback) {
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", this.buildURL("get-shares"));
     xmlhttp.setRequestHeader("client-id", this.getCurrentClientKey());
-    xmlhttp.setRequestHeader("share-phrase", this.getCurrentSharePhrase());
+    xmlhttp.setRequestHeader("credential", this.getCurrentCredential());
     xmlhttp.send();
     xmlhttp.onreadystatechange = function() {
         if (xmlhttp.readyState == XMLHttpRequest.DONE) {
@@ -156,11 +156,11 @@ ShareServiceModel.prototype.getCurrentShareUser = function() {
     return retVal;
 }
 
-ShareServiceModel.prototype.getCurrentSharePhrase = function() {
-    var retVal = atob(appKeys['sharePhrase']);
+ShareServiceModel.prototype.getCurrentCredential = function() {
+    var retVal = atob(appKeys['shareBoardCredential']);
     if (this.UseCustomShare) {
-        retVal = this.CustomSharePhrase;
-        Mojo.Log.info("Using custom Share Phrase: " + retVal);
+        retVal = this.CustomShareCredential;
+        Mojo.Log.info("Using custom Share Service credential: " + retVal);
     }
     return retVal;
 }
