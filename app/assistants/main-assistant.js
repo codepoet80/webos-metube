@@ -582,6 +582,8 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             selectedState: false,
             originalData: results[i]
         }
+        if (!newItem.youtubeId) //Popular list results have a slightly different structure for no apparent reason
+            newItem.youtubeId = results[i].id;
         if (this.DeviceType == "TouchPad") {
             newItem.detailClass = "touchpad";
             newItem.imageWidth = "178px";

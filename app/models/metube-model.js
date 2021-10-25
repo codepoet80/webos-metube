@@ -92,7 +92,7 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
 
 //HTTP request for search
 MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults, callback) {
-    Mojo.Log.info("Getting search results from: " + this.buildURL("search"));
+    Mojo.Log.info("Getting search results for '" + searchString + "' from: " + this.buildURL("search"));
     this.retVal = "";
     if (callback)
         callback = callback.bind(this);
