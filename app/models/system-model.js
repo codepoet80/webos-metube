@@ -8,6 +8,8 @@ System Model
 				Privileged functions can only be called if your App ID starts with com.palm
 */
 
+//** Note: If you synced this file from a common repository, local edits may be over-written! */
+
 var SystemModel = function() {
 
 };

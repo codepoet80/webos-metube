@@ -10,6 +10,8 @@ Updater Model - Mojo
     https://github.com/codepoet80/webos-catalog-frontend/tree/main/Examples
 */
 
+//** Note: If you synced this file from a common repository, local edits may be over-written! */
+
 var UpdaterModel = function() {
     this.updateURL = "http://appcatalog.webosarchive.com/WebService/getLatestVersionInfo.php?app=";
     this.lastUpdateResponse = null;
