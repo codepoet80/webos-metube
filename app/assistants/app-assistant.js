@@ -3,12 +3,14 @@ In the app assistant, we setup some app-wide global objects and handle different
 */
 var appModel = null;
 var updaterModel = null;
+var systemModel = null;
 var metubeModel = null;
 
 function AppAssistant() {
     appModel = new AppModel();
     urlAssistModel = new URLAssistModel();
     updaterModel = new UpdaterModel();
+    systemModel = new SystemModel();
     metubeModel = new MetubeModel();
     shareServiceModel = new ShareServiceModel();
     Mojo.Additions = Additions;

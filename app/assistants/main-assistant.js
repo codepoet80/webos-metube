@@ -420,7 +420,7 @@ MainAssistant.prototype.scrollToTop = function() {
 
 MainAssistant.prototype.disableUI = function(statusValue) {
 
-    this.PreventDisplaySleep(); //Keep screen awake during video fetch, so deactivate doesn't get fired
+    systemModel.PreventDisplaySleep(); //Keep screen awake during video fetch, so deactivate doesn't get fired
 
     //start spinner (if not already spinning)
     if (this.spinnerModel && !this.spinnerModel.spinning) {
@@ -444,7 +444,7 @@ MainAssistant.prototype.disableUI = function(statusValue) {
 
 MainAssistant.prototype.enableUI = function() {
 
-    this.AllowDisplaySleep();
+    systemModel.AllowDisplaySleep();
 
     //stop spinner
     if (this.spinnerModel) {
@@ -464,57 +464,6 @@ MainAssistant.prototype.enableUI = function() {
 //#endregion
 
 //#region Service Calls and Binding
-
-//Depending on history, either get previously accessed video, or request a new one from the service
-MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
-    Mojo.Log.info("Direct video requested: " + videoRequest);
-    $("showResultsList").style.display = "none";
-
-    var historyPath = false;
-    for (var i = 0; i < this.VideoRequests.length; i++) {
-        var histRequest = this.VideoRequests[i];
-        var currRequestTime = new Date().getTime();
-        //If this video is already in the history, and its not too old, just play that
-        if (histRequest.videoRequest == videoRequest && ((currRequestTime - histRequest.requestTime) < this.ServerCleanupTime)) {
-            /*  Note: there is the possibility of a race condition where the server may clean up this file
-                while it is in use during a repeat playback. You can mitigate by changing the server clean-up time
-                (both here and on the server) but be aware that doing so increases the odds of user race conditions (see below)   */
-            Mojo.Log.warn("This video has been requested in the recent past; using path from previous request.");
-            historyPath = this.VideoRequests[i].videoPath;
-        }
-    }
-    if (!historyPath) {
-        //Ask server for existing file list so we can determine when a new file is ready
-        metubeModel.DoMeTubeListRequest(function(response) {
-            //Mojo.Log.info("Server file list now: " + response);
-            /* Note: This house-of-cards depends on each request from all users creating a new file on the server
-                which this client will find by comparing the file list before its request, to the file list after
-                their request. An aggressive clean-up time on the server decreases the odds that two users will
-                have query overlap, causing one to deny service to the other -- but carries the risk that a video
-                will be cleaned-up while the video is in use. This is an unfortunate side-effect of the server knowing
-                nothing about users, or even having any state stored between requests and results. We will attempt to
-                further mitigate by storing some state in the client-side.
-            */
-            if (response != null && response != "") {
-                this.FileList = JSON.parse(response);
-
-                //Update the video request history (store state in the client-side)
-                var requestTime = new Date().getTime();
-                this.VideoRequests.push({ "videoRequest": videoRequest, "requestTime": requestTime });
-
-                //Ask server for a new file
-                this.addFile(videoRequest);
-            } else {
-                Mojo.Log.error("No usable response from server while sending list request: " + response);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity and/or self-host settings.");
-            }
-        }.bind(this));
-    } else {
-        //Play the video
-        Mojo.Log.info("About to play video from historical path: " + historyPath);
-        this.playPreparedVideo(historyPath, true);
-    }
-}
 
 //Send a search request to MeTube to send to Google for us (never worry about HTTPS encryption again)
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
@@ -654,6 +603,101 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
     }.bind(this));
 }
 
+//Depending on history, either get previously accessed video, or request a new one from the service
+MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
+    Mojo.Log.info("Direct video requested: " + videoRequest);
+    $("showResultsList").style.display = "none";
+
+    var historyPath = false;
+    for (var i = 0; i < this.VideoRequests.length; i++) {
+        var histRequest = this.VideoRequests[i];
+        var currRequestTime = new Date().getTime();
+        //If this video is already in the history, and its not too old, just play that
+        if (histRequest.videoRequest == videoRequest && ((currRequestTime - histRequest.requestTime) < this.ServerCleanupTime)) {
+            /*  Note: there is the possibility of a race condition where the server may clean up this file
+                while it is in use during a repeat playback. You can mitigate by changing the server clean-up time
+                (both here and on the server) but be aware that doing so increases the odds of user race conditions (see below)   */
+            Mojo.Log.warn("This video has been requested in the recent past; using path from previous request.");
+            historyPath = this.VideoRequests[i].videoPath;
+        }
+    }
+    if (!historyPath) {
+        //Ask server for existing file list so we can determine when a new file is ready
+        metubeModel.DoMeTubeListRequest(function(response) {
+            //Mojo.Log.info("Server file list now: " + response);
+            /* Note: This house-of-cards depends on each request from all users creating a new file on the server
+                which this client will find by comparing the file list before its request, to the file list after
+                their request. An aggressive clean-up time on the server decreases the odds that two users will
+                have query overlap, causing one to deny service to the other -- but carries the risk that a video
+                will be cleaned-up while the video is in use. This is an unfortunate side-effect of the server knowing
+                nothing about users, or even having any state stored between requests and results. We will attempt to
+                further mitigate by storing some state in the client-side.
+            */
+            if (response != null && response != "") {
+                this.FileList = JSON.parse(response);
+
+                //Update the video request history (store state in the client-side)
+                var requestTime = new Date().getTime();
+                this.VideoRequests.push({ "videoRequest": videoRequest, "requestTime": requestTime });
+
+                //Ask server for a new file
+                this.addFile(videoRequest);
+            } else {
+                Mojo.Log.error("No usable response from server while sending list request: " + response);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity and/or self-host settings.");
+            }
+        }.bind(this));
+    } else {
+        //Play the video
+        Mojo.Log.info("About to play video from historical path: " + historyPath);
+        this.playPreparedVideo(historyPath, true);
+    }
+}
+
+//Ask MeTube to prepare a new video file for us
+MainAssistant.prototype.addFile = function(theFile) {
+    Mojo.Log.info("Submitting file request to server: " + theFile);
+    
+    systemModel.LockVolumeKeys();
+
+    var quality = "bestvideo";
+    if (appModel.AppSettingsCurrent["HDQuality"] != "bestvideo" && this.LastTappedVideoResolution == "HD")
+        quality = appModel.AppSettingsCurrent["HDQuality"];
+
+    Mojo.Log.info("QUALITY: " + quality + ", Preference: " + appModel.AppSettingsCurrent["HDQuality"]);
+    metubeModel.DoMeTubeAddRequest(theFile, quality, this.RequestConvert, function(response) {
+        if (response && response != "" && response.indexOf("status") != -1) {
+            try {
+                var responseObj = JSON.parse(response);
+            } catch (e) {
+                Mojo.Log.error("Error parsing server response");
+                Mojo.Additions.ShowDialogBox("Parse Error", "The server response could not be parsed: " + response);
+            }
+            if (responseObj.status == "ok") {
+                this.timeOutCount = 0;
+                if (responseObj.target && responseObj.target != "") {
+                    this.FileToFind = responseObj.target;
+                    Mojo.Log.warn("The server specified a file to watch for: " + this.FileToFind)
+                } else {
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, using old approach..." }, "", "");
+                }
+                //Start checking for new files on server
+                this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
+            } else {
+                this.enableUI();
+
+                Mojo.Log.error("Server Error while adding new file request" + responseObj.msg);
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
+            }
+        } else {
+            this.enableUI();
+
+            Mojo.Log.error("No usable response from server while adding new file request: " + response);
+            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity and/or self-host settings.");
+        }
+    }.bind(this));
+}
+
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
     metubeModel.DoMeTubeListRequest(function(response) {
@@ -730,47 +774,6 @@ MainAssistant.prototype.findNewFile = function(checkList) {
             return checkFile;
         }
     }
-}
-
-//Ask MeTube to prepare a new video file for us
-MainAssistant.prototype.addFile = function(theFile) {
-    //Mojo.Log.info("Time to submit a file request: " + theFile);
-    var quality = "bestvideo";
-    if (appModel.AppSettingsCurrent["HDQuality"] != "bestvideo" && this.LastTappedVideoResolution == "HD")
-        quality = appModel.AppSettingsCurrent["HDQuality"];
-
-    Mojo.Log.info("QUALITY: " + quality + ", Preference: " + appModel.AppSettingsCurrent["HDQuality"]);
-    metubeModel.DoMeTubeAddRequest(theFile, quality, this.RequestConvert, function(response) {
-        if (response && response != "" && response.indexOf("status") != -1) {
-            try {
-                var responseObj = JSON.parse(response);
-            } catch (e) {
-                Mojo.Log.error("Error parsing server response");
-                Mojo.Additions.ShowDialogBox("Parse Error", "The server response could not be parsed: " + response);
-            }
-            if (responseObj.status == "ok") {
-                this.timeOutCount = 0;
-                if (responseObj.target && responseObj.target != "") {
-                    this.FileToFind = responseObj.target;
-                    Mojo.Log.warn("The server specified a file to watch for: " + this.FileToFind)
-                } else {
-                    Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, using old approach..." }, "", "");
-                }
-                //Start checking for new files on server
-                this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
-            } else {
-                this.enableUI();
-
-                Mojo.Log.error("Server Error while adding new file request" + responseObj.msg);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
-            }
-        } else {
-            this.enableUI();
-
-            Mojo.Log.error("No usable response from server while adding new file request: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity and/or self-host settings.");
-        }
-    }.bind(this));
 }
 
 //Figure out how to play the video we requested 
@@ -956,32 +959,6 @@ MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
     useTitle = useTitle[0];
     useTitle = useTitle.replace(".mp4", "");
     return useTitle;
-}
-
-//Allow the display to sleep
-MainAssistant.prototype.AllowDisplaySleep = function(stageController) {
-    if (!stageController)
-        stageController = Mojo.Controller.getAppController().getActiveStageController();
-
-    //Tell the System it doesn't have to stay awake any more
-    Mojo.Log.info("Allowing display sleep");
-
-    stageController.setWindowProperties({
-        blockScreenTimeout: false
-    });
-}
-
-//Prevent the display from sleeping
-MainAssistant.prototype.PreventDisplaySleep = function(stageController) {
-    if (!stageController)
-        stageController = Mojo.Controller.getAppController().getActiveStageController();
-
-    //Ask the System to stay awake while timer is running
-    Mojo.Log.info("Preventing display sleep");
-
-    stageController.setWindowProperties({
-        blockScreenTimeout: true
-    });
 }
 
 //#endregion

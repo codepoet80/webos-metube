@@ -13,6 +13,7 @@
     { "source": "app/models/shareservice-model.js" },
     { "source": "app-keys.js" },
     { "source": "app/models/urlassist-model.js" },
+    { "source": "app/models/system-model.js" },
     { "source": "app/models/updater-model.js" },
     { "source": "app/models/app-model.js" }
 ]

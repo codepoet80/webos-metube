@@ -1,7 +1,7 @@
 /*
 Updater Model - Mojo
- Version 0.6
- Created: 2021
+ Version 1.0
+ Created: 2022
  Author: Jonathan Wise
  License: MIT
  Description: A model to check for and get updates from App Museum II web service.
@@ -111,7 +111,7 @@ UpdaterModel.prototype.performIdentifiedUpdateCheck = function(appName, currVers
         updateURL = updateURL + "&clientid=" + response[Object.keys(response)[0]];
     }
     // Send some info about the device (could be used for compat checks)
-    deviceData = Mojo.Environment.DeviceInfo.modelName + "/" + Mojo.Environment.DeviceInfo.platformVersion + "/" + Mojo.Environment.DeviceInfo.carrierName + "/" + Mojo.Locale.getCurrentLocale();
+    deviceData = Mojo.Environment.DeviceInfo.modelName + "/" + Mojo.Environment.DeviceInfo.platformVersion + "/" + (Mojo.Environment.DeviceInfo.carrierName || "WiFi") + "/" + Mojo.Locale.getCurrentLocale();
     updateURL = updateURL + "&device=" + encodeURIComponent(deviceData);
     
     if (callback)   // set scope for xmlhttp anonymous function callback
