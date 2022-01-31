@@ -822,7 +822,15 @@ MainAssistant.prototype.startVideoPlayer = function(videoURL, isStream) {
             Mojo.Log.error("Video player launch Failure, " + videoURL + ":", JSON.stringify(response), response.errorText);
         }.bind(this)
     });
-    this.enableUI();
+
+    //Suggest Retry via button label
+    var submitBtnSetup = this.controller.getWidgetSetup("btnGetVideo");
+    submitBtnSetup.model.label = "Retry";
+    setTimeout(function() {
+        this.controller.modelChanged(submitBtnSetup.model);
+        this.enableUI();
+    }.bind(this), 1000);
+
     return true;
 }
 

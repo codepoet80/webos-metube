@@ -1,6 +1,6 @@
 {
     "id": "com.jonandnic.metube",
-    "version": "1.8.0",
+    "version": "1.8.1",
     "vendor": "Jon Wise",
     "type": "web",
     "main": "index.html",
