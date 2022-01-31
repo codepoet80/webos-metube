@@ -658,6 +658,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 MainAssistant.prototype.addFile = function(theFile) {
     Mojo.Log.info("Submitting file request to server: " + theFile);
     
+    this.KillAppByAppId("com.palm.app.videoplayer");
     systemModel.LockVolumeKeys();
 
     var quality = "bestvideo";
@@ -970,3 +971,33 @@ MainAssistant.prototype.makeFileNameFromDownloadURL = function(videoURL) {
 }
 
 //#endregion
+
+//Launch an app
+MainAssistant.prototype.KillAppByAppId = function(appId) {
+
+    Mojo.Log.info("Checking running apps for " + appId);
+    this.listRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
+        method: "running",
+        parameters: {},
+        onSuccess: function(response) {
+            Mojo.Log.info("Running app list: ", JSON.stringify(response));
+            for (var i=0;i<response.running.length;i++) {
+                if (response.running[i].id == appId) {
+                    Mojo.Log.warn("Found the app, process id is: " + response.running[i].processid + ", killing...");
+                    this.killRequest = new Mojo.Service.Request("palm://com.palm.applicationManager", {
+                        method: "close",
+                        parameters: { "processId": response.running[i].processid },
+                        onSuccess: function(response) { Mojo.Log.error("Killed app: " + JSON.stringify(response))},
+                        onFailure: function(response) { Mojo.Log.error("Couldn not kill app: " + JSON.stringify(response))}
+                    })
+                } else {
+                    Mojo.Log.info("Running app is not target: " + response.running[i].id);
+                }
+            }
+        },
+        onFailure: function(response) {
+            Mojo.Log.error("App List Failure", JSON.stringify(response));
+        }
+    });
+    return true;
+}

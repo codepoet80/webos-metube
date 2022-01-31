@@ -1,10 +1,10 @@
 {
-    "id": "com.jonandnic.metube",
+    "id": "com.palm.app.metube",
     "version": "1.8.1",
     "vendor": "Jon Wise",
     "type": "web",
     "main": "index.html",
-    "title": "MeTube",
+    "title": "MeTube X",
     "icon": "icon.png",
     "uiRevision": "2",
     "theme": "dark",
