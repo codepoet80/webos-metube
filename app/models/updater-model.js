@@ -13,7 +13,7 @@ Updater Model - Mojo
 //** Note: If you synced this file from a common repository, local edits may be over-written! */
 
 var UpdaterModel = function() {
-    this.updateURL = "http://appcatalog.webosarchive.com/WebService/getLatestVersionInfo.php?app=";
+    this.updateURL = "http://appcatalog.webosarchive.org/WebService/getLatestVersionInfo.php?app=";
     this.lastUpdateResponse = null;
 };
 
