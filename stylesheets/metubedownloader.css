@@ -1,4 +1,6 @@
-/* TODO: put your application-specific CSS here */
+body .palm-dark {
+    background-color: #313131;
+}
 
 .thumbnail {
     height: 100px;
@@ -50,17 +52,23 @@
     margin-top: -5px;
     padding: 14px;
     font-size: 14px;
-    color: #FFF;
+    color: #000;
+}
+.palm-dark .explanation-text {
+    color: lightgray;
 }
 
 .video-details {
-    font-size: 12px;
+    color:dimgray
+}
+.palm-dark .video-details {
     color: darkgray;
 }
-
+.video-details {
+    font-size: 12px;
+}
 .video-details.touchpad {
     font-size: 14px;
-    color: darkgray;
 }
 
 
@@ -115,10 +123,18 @@
     height: 52px;
     width: 42px;
     margin-right: -8px;
+}
+.palm-dark .search-bar .icon.right.submit {
     background: url(../images/btn-clear-pressed.png);
     background: url(../images/btn-clear.png) center center no-repeat;
 }
-
-.search-bar .icon.right.submit.selected {
+.palm-dark .search-bar .icon.right.submit.selected {
     background: url(../images/btn-clear-pressed.png) center center no-repeat;
+}
+.palm-default .search-bar .icon.right.submit {
+    background: url(../images/btn-clear.png);
+    background: url(../images/btn-clear-pressed.png) center center no-repeat;
+}
+.palm-default .search-bar .icon.right.submit.selected {
+    background: url(../images/btn-clear.png) center center no-repeat;
 }

@@ -12,6 +12,10 @@ function MainAssistant() {
 }
 
 MainAssistant.prototype.setup = function() {
+    //Default to dark theme
+    if (Object.keys(appModel.AppSettingsCurrent).indexOf('ThemePreference') == -1)
+        appModel.AppSettingsCurrent["ThemePreference"] = "palm-dark";
+    appModel.SetThemePreference(this.controller);
 
     this.ServerCleanupTime = 900000; //This value should match the server's cronjob schedule
     /* This value will is the total number of milliseconds the client will wait for the server to finish preparing a video.
@@ -114,11 +118,9 @@ MainAssistant.prototype.handleUpdateResponse = function(responseObj) {
 }
 
 MainAssistant.prototype.activate = function(event) {
-    document.body.style.backgroundColor = "#313131";
+    //document.body.style.backgroundColor = "#313131";
 
-    //Load preferences
-    appModel.LoadSettings();
-    Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
+    //Apply preferences
     metubeModel.UseCustomGoogleAPIKey = appModel.AppSettingsCurrent["UseGoogleAPIKey"];
     metubeModel.CustomGoogleAPIKey = appModel.AppSettingsCurrent["GoogleAPIKey"];
     metubeModel.UseCustomClientAPIKey = appModel.AppSettingsCurrent["UseClientAPIKey"];

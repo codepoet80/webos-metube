@@ -8,7 +8,7 @@ ShareBoard Model - Mojo
 */
 
 var ShareServiceModel = function() {
-    this.urlBase = "http://share.webosarchive.com/";
+    this.urlBase = "http://share.webosarchive.org/";
 };
 
 //Properties

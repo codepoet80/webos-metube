@@ -8,7 +8,7 @@ MeTube Model - Mojo
 */
 
 var MetubeModel = function() {
-    this.urlBase = "http://metube.webosarchive.com";
+    this.urlBase = "http://metube.webosarchive.org";
 };
 
 //Properties

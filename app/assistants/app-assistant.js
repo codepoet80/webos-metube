@@ -18,10 +18,14 @@ function AppAssistant() {
 
 //This function will handle relaunching the app when an alarm goes off(see the device/alarm scene)
 AppAssistant.prototype.handleLaunch = function(params) {
+    Mojo.Log.info("MeTube is Launching! Launch params: " + JSON.stringify(params));
+
+    //load preferences
+    appModel.LoadSettings();
+    Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
 
     //get the proxy for the stage in the event it already exists (eg: app is currently open)
     var mainStage = this.controller.getStageProxy("");
-    Mojo.Log.info("MeTube is Launching! Launch params: " + JSON.stringify(params));
 
     //if there was a search query, load with that
     if (params && params["query"] != undefined) {

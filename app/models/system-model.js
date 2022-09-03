@@ -1,6 +1,6 @@
 /*
 System Model
- Version 1.5
+ Version 1.6
  Created: 2022
  Author: Jonathan Wise
  License: MIT
@@ -10,9 +10,10 @@ System Model
 
 //** Note: If you synced this file from a common repository, local edits may be over-written! */
 
-var SystemModel = function() {
+var SystemModel = function() { 
 
 };
+SystemModel.WOSAPrefs = {};
 
 //You should probably use Mojo.Environment.DeviceInfo for this
 //  http://sdk.webosarchive.com/docs/docs.html#reference/mojo/classes/mojo-environment.html#summary
@@ -260,7 +261,7 @@ SystemModel.prototype.LaunchApp = function(appName, params) {
             Mojo.Log.info("App Launch Success", appName, JSON.stringify(response));
         },
         onFailure: function(response) {
-            Mojo.Log.error("Alarm Launch Failure", appName, JSON.stringify(response));
+            Mojo.Log.error("App Launch Failure", appName, JSON.stringify(response));
         }
     });
     return true;
@@ -365,6 +366,40 @@ SystemModel.prototype.DownloadFile = function (url, mimetype, pathFromInteral, f
                 Mojo.Controller.getAppController().showBanner({ messageText: "Download error:" + JSON.stringify(response) }, "", "");
             }
         }
+    });
+}
+
+SystemModel.prototype.LoadWOSAPrefs = function (callback) {
+    if (callback)
+        callback.bind(this);
+    var req = new Ajax.Request("/media/internal/.wosaprefs", {
+        method: 'get',
+        onFailure: function() {
+            Mojo.Log.warn("Could not load .wosaprefs file. Preferences cannot be opened.");
+            callback(null);
+        },
+        on404: function() {
+            Mojo.Log.warn("Could not find .wosaprefs file. Preferences cannot be opened.");
+            callback(null);
+        },
+        onSuccess: function(response) {
+            if (response && response.responseText) {
+                Mojo.Log.info("Loaded .wosaprefs file: " + JSON.stringify(response.responseText));
+                try {
+                    prefsObj = JSON.parse(response.responseText);
+                    this.WOSAPrefs = prefsObj.preferences;
+                } catch(ex) {
+                    Mojo.Log.warn("Could not parse .wosaprefs file. Preferences cannot be opened. " + ex);
+                    callback(null);
+                    return;
+                }
+                callback(prefsObj);
+                return;
+            } else {
+                Mojo.Log.warn("Could not read .wosaprefs file. Preferences cannot be opened.");
+            }
+            callback(null);
+        }.bind(this)
     });
 }
 
@@ -634,16 +669,16 @@ SystemModel.prototype.bluetoothControlService = function(url, params, cb) {
     });
 }
 
-SystemModel.prototype.GetInstalledApps = function(callBack) {
-    if (callBack)
-        callBack.bind(this);
+SystemModel.prototype.GetInstalledApps = function(callback) {
+    if (callback)
+        callback.bind(this);
     if (Mojo.Controller.appInfo.id.indexOf("com.palm") != -1) {
         Mojo.Log.info("Getting list of installed apps.");
         this.appRequest = new Mojo.Service.Request("palm://com.palm.applicationManager/listApps", {
             method: "",
             parameters: {},
-            onSuccess: callBack,
-            onFailure: callBack
+            onSuccess: callback,
+            onFailure: callback
         });
     } else {
         Mojo.Log.error("Privileged system services can only be called by apps with an ID that starts with 'com.palm'!");
