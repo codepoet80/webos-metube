@@ -223,7 +223,7 @@ MainAssistant.prototype.handleCommand = function(event) {
                 stageController.pushScene({ name: "preferences", disableSceneScroller: false });
                 break;
             case 'do-myAbout':
-                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube client for webOS. Copyright 2021, Jon Wise. Thanks to Nomad84 and MrHall17 for beta testing. Distributed under an MIT License.<br>Source code available at: https://github.com/codepoet80/webos-metube");
+                Mojo.Additions.ShowDialogBox("MeTube - " + Mojo.Controller.appInfo.version, "MeTube client for webOS. Copyright 2022, Jon W. Thanks to Nomad84 and MrHall17 for beta testing. Distributed under an MIT License.<br>Source code available at: https://github.com/codepoet80/webos-metube");
                 break;
         }
     }

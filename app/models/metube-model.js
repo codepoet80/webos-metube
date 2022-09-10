@@ -2,7 +2,7 @@
 MeTube Model - Mojo
  Version 1.3
  Created: 2020
- Author: Jonathan Wise
+ Author: Jon W
  License: MIT
  Description: A model to interact with MeTube wrapper service within a Mojo app.
 */
