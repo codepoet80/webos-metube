@@ -7,7 +7,7 @@ Updater Model - Mojo
  Description: A model to check for and get updates from App Museum II web service.
     Does not require App Museum to be installed, but does require internet access, and Preware to do the actual install.
  Source: Find the latest version of this library and info on how to use it on GitHub:
-    https://github.com/codepoet80/webos-common
+    https://github.com/webosarchive/webos-common
 */
 
 //** Note: If you synced this file from a common repository, local edits may be over-written! */
