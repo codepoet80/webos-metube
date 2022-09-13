@@ -8,7 +8,7 @@ You can download it from the [webOS Archive App Catalog](http://appcatalog.webos
 
 Tested on Pre, Pre2, Veer and Touchpad. Now with Just Type search capability!
 
-Uses [MeTube PHP Service Wrapper](https://github.com/codepoet80/metube-php-servicewrapper) and leverages [MeTube](https://github.com/alexta69/metube) both hosted by [webOSArchive](http://www.webosarchive.org) for the webOS community without guarantee of privacy or performance. Illegal or illicit use strictly prohibited. 
+Uses [MeTube PHP Service Wrapper](https://github.com/codepoet80/metube-php-servicewrapper) hosted by [webOSArchive](http://www.webosarchive.org) for the webOS community without guarantee of privacy or performance. Illegal or illicit use strictly prohibited. 
 
 You can also self-host the services, see the [instructions here](https://github.com/codepoet80/metube-php-servicewrapper/blob/main/README.md).
 
