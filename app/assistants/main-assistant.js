@@ -699,7 +699,7 @@ MainAssistant.prototype.addFile = function(theFile) {
                 }
                 //Start checking for status/new files on server
                 if (this.UseStatusPolling && this.CurrentJobId) {
-                    this.disableUI("Requesting...");
+                    this.disableUI("Fetching");
                     this.FileCheckInt = setInterval(this.checkJobStatus.bind(this), 2000);
                 } else {
                     this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
@@ -875,16 +875,16 @@ MainAssistant.prototype.formatStatusText = function(status, progress) {
         }
     } else if (status == "converting") {
         if (progress !== null && progress !== undefined) {
-            statusText = "Converting: " + progress + "%";
+            statusText = "Convert: " + progress + "%";
         } else {
-            statusText = "Converting...";
+            statusText = "Convert...";
         }
     } else if (status == "ready") {
         statusText = "Ready!";
     } else if (status == "failed") {
         statusText = "Failed";
     } else {
-        statusText = "Processing...";
+        statusText = "Working...";
     }
     return statusText;
 }
