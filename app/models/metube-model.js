@@ -143,6 +143,38 @@ MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
     }.bind(this);
 }
 
+//HTTP request for job status (progress tracking)
+MetubeModel.prototype.DoMeTubeStatusRequest = function(jobId, target, callback) {
+    this.retVal = "";
+    if (callback)
+        callback = callback.bind(this);
+
+    var statusURL = this.buildURL("status");
+    if (jobId) {
+        statusURL = statusURL + "?job_id=" + encodeURIComponent(jobId);
+    } else if (target) {
+        statusURL = statusURL + "?target=" + encodeURIComponent(target);
+    }
+    Mojo.Log.info("Checking job status: " + statusURL);
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", statusURL);
+    xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
+    xmlhttp.send();
+    xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+            if (xmlhttp.status == 404) {
+                // Server doesn't support status endpoint (old version)
+                // Return null to signal fallback to list polling
+                Mojo.Log.warn("Status endpoint not available, falling back to list polling");
+                if (callback) callback(null);
+            } else {
+                if (callback) callback(xmlhttp.responseText);
+            }
+        }
+    }.bind(this);
+}
+
 //Form HTTP request URL for playback
 MetubeModel.prototype.BuildMeTubePlaybackRequest = function(videoURL) {
     videoURL = videoURL + "&requestid=" + this.encodeRequest(this.getCurrentClientKey() + "|" + videoURL);

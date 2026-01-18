@@ -26,6 +26,8 @@ MainAssistant.prototype.setup = function() {
     this.RequestConvert = false;
     this.FileList = [];
     this.FileToFind = false;
+    this.CurrentJobId = null; // Job ID for status tracking
+    this.UseStatusPolling = true; // Try status.php first, fall back to list polling if unavailable
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     //TODO: We could be even more resilient if we saved this in a preference.
 
@@ -375,6 +377,7 @@ MainAssistant.prototype.handleClearTap = function() {
 
     //Abandon any active queries
     clearInterval(this.FileCheckInt);
+    this.CurrentJobId = null;
 
     this.getMeTubeUserRecommendations();
 }
@@ -683,8 +686,24 @@ MainAssistant.prototype.addFile = function(theFile) {
                 } else {
                     Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, using old approach..." }, "", "");
                 }
-                //Start checking for new files on server
-                this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
+                // Store job_id if server supports it
+                if (responseObj.job_id && responseObj.job_id != "") {
+                    this.CurrentJobId = responseObj.job_id;
+                    Mojo.Log.info("Server provided job_id for tracking: " + this.CurrentJobId);
+                } else {
+                    this.CurrentJobId = null;
+                }
+                // Check for duplicate (server already had this video)
+                if (responseObj.duplicate) {
+                    Mojo.Log.info("Server reports this is a duplicate request, video should be ready");
+                }
+                //Start checking for status/new files on server
+                if (this.UseStatusPolling && this.CurrentJobId) {
+                    this.disableUI("Requesting...");
+                    this.FileCheckInt = setInterval(this.checkJobStatus.bind(this), 2000);
+                } else {
+                    this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
+                }
             } else {
                 this.enableUI();
 
@@ -759,6 +778,115 @@ MainAssistant.prototype.checkForNewFiles = function() {
             this.enableUI();
         }
     }.bind(this));
+}
+
+//Check job status via status.php endpoint (with progress tracking)
+MainAssistant.prototype.checkJobStatus = function() {
+    var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
+    if (this.RequestConvert)
+        useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
+
+    Mojo.Log.info("Checking job status for " + this.CurrentJobId + ", attempt " + this.timeOutCount + "/" + useTimeout);
+
+    metubeModel.DoMeTubeStatusRequest(this.CurrentJobId, this.FileToFind, function(response) {
+        // If status endpoint not available, fall back to list polling
+        if (response === null) {
+            Mojo.Log.warn("Status endpoint not available, switching to list polling");
+            this.UseStatusPolling = false;
+            clearInterval(this.FileCheckInt);
+            this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
+            return;
+        }
+
+        if (response && response != "") {
+            try {
+                var responseObj = JSON.parse(response);
+            } catch (e) {
+                Mojo.Log.error("Error parsing status response: " + e);
+                this.timeOutCount++;
+                return;
+            }
+
+            if (responseObj.status == "error") {
+                // Error from server - might be job not found, continue waiting
+                Mojo.Log.warn("Status check returned error: " + responseObj.msg);
+                this.timeOutCount++;
+                if (this.timeOutCount > useTimeout) {
+                    clearInterval(this.FileCheckInt);
+                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "Could not get status for this job before timeout.");
+                    this.enableUI();
+                }
+                return;
+            }
+
+            // Update UI with current status and progress
+            var statusText = this.formatStatusText(responseObj.status, responseObj.progress);
+            this.disableUI(statusText);
+
+            if (responseObj.status == "ready") {
+                // Video is ready!
+                Mojo.Log.info("Job complete! Video is ready: " + this.FileToFind);
+                clearInterval(this.FileCheckInt);
+
+                // Update video request history
+                var videoPath = this.FileToFind;
+                var updateVideoRequest = this.VideoRequests[this.VideoRequests.length - 1];
+                updateVideoRequest.videoPath = videoPath;
+                this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
+
+                // Play the video
+                this.playPreparedVideo(videoPath, true);
+
+            } else if (responseObj.status == "failed") {
+                // Download/conversion failed
+                Mojo.Log.error("Job failed: " + (responseObj.error || "Unknown error"));
+                clearInterval(this.FileCheckInt);
+                var errorMsg = responseObj.error ? responseObj.error.substring(0, 200) : "The video could not be processed.";
+                Mojo.Additions.ShowDialogBox("Processing Failed", errorMsg);
+                this.enableUI();
+
+            } else {
+                // Still processing (queued, downloading, converting)
+                this.timeOutCount++;
+                if (this.timeOutCount > useTimeout) {
+                    Mojo.Log.warn("Timeout exceeded while waiting for job to complete");
+                    clearInterval(this.FileCheckInt);
+                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be prepared before timeout.<br>The video may be too long to process in time. You can increase the timeout in Preferences, or try a different video.");
+                    this.enableUI();
+                }
+            }
+        } else {
+            Mojo.Log.error("No usable response from status endpoint");
+            this.timeOutCount++;
+        }
+    }.bind(this));
+}
+
+//Format status text for display
+MainAssistant.prototype.formatStatusText = function(status, progress) {
+    var statusText = "";
+    if (status == "queued") {
+        statusText = "Queued...";
+    } else if (status == "downloading") {
+        if (progress !== null && progress !== undefined) {
+            statusText = "Downloading: " + progress + "%";
+        } else {
+            statusText = "Downloading...";
+        }
+    } else if (status == "converting") {
+        if (progress !== null && progress !== undefined) {
+            statusText = "Converting: " + progress + "%";
+        } else {
+            statusText = "Converting...";
+        }
+    } else if (status == "ready") {
+        statusText = "Ready!";
+    } else if (status == "failed") {
+        statusText = "Failed";
+    } else {
+        statusText = "Processing...";
+    }
+    return statusText;
 }
 
 //Identify which is the new file
