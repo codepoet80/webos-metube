@@ -28,11 +28,12 @@ var AppModel = function() {
         ServerKey: "",
         EndpointURL: "",
         SearchResultMax: 25,
-        TimeoutMax: 15,
+        TimeoutMax: 60,
         PlaybackStrategy: "stream",
         HDQuality: "bestvideo",
         HDWarningShown: false,
-        FirstRun: true
+        FirstRun: true,
+        VideoHistory: []
     };
 }
 

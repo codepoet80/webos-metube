@@ -29,6 +29,7 @@ MainAssistant.prototype.setup = function() {
     this.CurrentJobId = null; // Job ID for status tracking
     this.UseStatusPolling = true; // Try status.php first, fall back to list polling if unavailable
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
+    this.isInBackground = false; // Track if app is in background for notification handling
     //TODO: We could be even more resilient if we saved this in a preference.
 
     //New Search box
@@ -52,6 +53,13 @@ MainAssistant.prototype.setup = function() {
         disabled: false
     };
     this.controller.setupWidget("btnGetVideo", this.submitBtnAttrs, this.submitBtnModel);
+    //History button
+    this.historyBtnAttrs = {};
+    this.historyBtnModel = {
+        label: "History",
+        disabled: false
+    };
+    this.controller.setupWidget("btnHistory", this.historyBtnAttrs, this.historyBtnModel);
     //Loading spinner - with global members for easy toggling later
     this.spinnerAttrs = {
         spinnerSize: Mojo.Widget.spinnerLarge
@@ -85,6 +93,7 @@ MainAssistant.prototype.setup = function() {
             Mojo.Menu.editItem,
             { label: "Handle URLs", chosen: false, command: 'do-HandleURLs' },
             { label: "Convert First", chosen: false, command: 'do-ConvertFirst' },
+            { label: "Clear History", command: 'do-ClearHistory' },
             { label: "Preferences", command: 'do-Preferences' },
             { label: "About", command: 'do-myAbout' }
         ]
@@ -94,8 +103,10 @@ MainAssistant.prototype.setup = function() {
     /* Always on Event handlers */
     Mojo.Event.listen(this.controller.get("txtSearch"), Mojo.Event.propertyChange, this.handleTextInput.bind(this));
     Mojo.Event.listen(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick.bind(this));
+    Mojo.Event.listen(this.controller.get("btnHistory"), Mojo.Event.tap, this.handleHistoryClick.bind(this));
     Mojo.Event.listen(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick.bind(this));
     Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageActivate, this.activateWindow.bind(this));
+    Mojo.Event.listen(this.controller.stageController.document, Mojo.Event.stageDeactivate, this.deactivateWindow.bind(this));
     Mojo.Event.listen(this.controller.get("showResultsList"), Mojo.Event.holdEnd, this.showPopupMenu.bind(this));
 
     // Non-Mojo widgets
@@ -174,6 +185,7 @@ MainAssistant.prototype.activate = function(event) {
 
 MainAssistant.prototype.activateWindow = function(event) { //This is needed for handling a re-launch with parameters
     Mojo.Log.info("Stage re-activated!");
+    this.isInBackground = false;
     this.handleLaunchQuery();
     //Check URL handling
     urlAssistModel.checkURLHandling(null,
@@ -187,10 +199,25 @@ MainAssistant.prototype.activateWindow = function(event) { //This is needed for 
         }.bind(this));
 };
 
+MainAssistant.prototype.deactivateWindow = function(event) {
+    Mojo.Log.info("Stage deactivated - app going to background");
+    this.isInBackground = true;
+};
+
 MainAssistant.prototype.handleLaunchQuery = function() {
     //handle launch with search query
     if (appModel.LaunchQuery != "") {
         Mojo.Log.info("using launch query: " + appModel.LaunchQuery);
+
+        // Check if app is currently busy fetching a video
+        if (this.spinnerModel && this.spinnerModel.spinning) {
+            Mojo.Log.info("App is busy, adding launch query to history as pending");
+            this.addToPendingHistory(appModel.LaunchQuery);
+            Mojo.Controller.getAppController().showBanner({ messageText: "Added to History (pending)" }, "", "");
+            appModel.LaunchQuery = "";
+            return;
+        }
+
         $("txtSearch").mojo.setValue(appModel.LaunchQuery);
         Mojo.Log.info("set textbox to: " + appModel.LaunchQuery);
         this.handleTextInput(null, appModel.LaunchQuery);
@@ -219,6 +246,27 @@ MainAssistant.prototype.handleCommand = function(event) {
                     this.RequestConvert = true;
                     Mojo.Additions.ShowDialogBox("Conversion Requested", "The server will attempt to convert videos for your device. Note that this is computationally expensive, impacts server performance for other users, and increases the delay before you can watch the video. In some cases, playback will timeout as a result. As such, this setting is temporary.")
                 }
+                break;
+            case 'do-ClearHistory':
+                this.controller.showAlertDialog({
+                    onChoose: function(value) {
+                        if (value == "yes") {
+                            appModel.AppSettingsCurrent["VideoHistory"] = [];
+                            appModel.SaveSettings();
+                            Mojo.Controller.getAppController().showBanner({ messageText: "History cleared" }, "", "");
+                            // Refresh the list with popular videos (only if not busy fetching)
+                            if (!this.spinnerModel || !this.spinnerModel.spinning) {
+                                this.getMeTubeUserRecommendations();
+                            }
+                        }
+                    }.bind(this),
+                    title: "Clear History",
+                    message: "Are you sure you want to clear your video history?",
+                    choices: [
+                        { label: "Clear", value: "yes", type: "negative" },
+                        { label: "Cancel", value: "no", type: "dismiss" }
+                    ]
+                });
                 break;
             case 'do-Preferences':
                 var stageController = Mojo.Controller.stageController;
@@ -272,6 +320,27 @@ MainAssistant.prototype.handleTextPaste = function(event) {
     Mojo.Log.info("Handling pasted value: " + event.clipboardData.getData('Text'));
     this.handleTextInput(event, event.clipboardData.getData('Text'));
 }
+
+MainAssistant.prototype.handleHistoryClick = function(event) {
+    var history = appModel.AppSettingsCurrent["VideoHistory"] || [];
+
+    if (history.length === 0) {
+        Mojo.Controller.getAppController().showBanner({ messageText: "No history yet" }, "", "");
+        return;
+    }
+
+    this.showingHistory = true;
+    this.updateHistoryList(history);
+};
+
+//Show history list after a timeout so user can retry
+MainAssistant.prototype.showHistoryForRetry = function() {
+    var history = appModel.AppSettingsCurrent["VideoHistory"] || [];
+    if (history.length > 0) {
+        this.showingHistory = true;
+        this.updateHistoryList(history);
+    }
+};
 
 MainAssistant.prototype.showPopupMenu = function(event) {
 
@@ -387,6 +456,35 @@ MainAssistant.prototype.handleListClick = function(event) {
     //Mojo.Log.info("Item tapped with element class " + event.originalEvent.target.className + ": " + event.item.videoName + ", id: " + event.item.youtubeId + ", selected state: " + event.item.selectedState);
 
     var listWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
+
+    // Check if this is a history item
+    if (event.item.historyUrl) {
+        if (event.item.selectedState) { //if item is selected and has been tapped
+            if (event.originalEvent.target.className == "checkmark true") { //if the tap was on the checkmark, uncheck it
+                Mojo.Log.info("uncheck history item!");
+                event.item.selectedState = false;
+                $("txtSearch").mojo.setValue("");
+                this.handleTextInput(event, "");
+                this.LastTappedVideo = null;
+            } else { //otherwise, treat as a second tap and go to top
+                this.scrollToTop();
+            }
+        } else { //item is unselected and has been tapped
+            for (var i = 0; i < listWidgetSetup.model.items.length; i++) {
+                listWidgetSetup.model.items[i].selectedState = false;
+            }
+            event.item.selectedState = true;
+            this.LastTappedVideo = event.item;
+            $("txtSearch").mojo.setValue(event.item.historyUrl);
+            this.handleTextInput(event, event.item.historyUrl);
+            // Clear pending flag since user is selecting this video
+            this.clearPendingFlag(event.item.historyUrl, null);
+        }
+        //Update UI
+        this.controller.modelChanged(listWidgetSetup.model);
+        return false;
+    }
+
     if (event.item.selectedState) { //if items is selected and has been tapped
         if (event.originalEvent.target.className == "checkmark true") { //if the tap was on the checkmark, uncheck it
             Mojo.Log.info("uncheck item!");
@@ -480,7 +578,7 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "error") {
                 Mojo.Log.error("Error message from server while searching YouTube: " + responseObj.msg);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the search request with: " + responseObj.msg.replace("ERROR: ", ""));
+                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the search request with: " + responseObj.msg.replace("ERROR: ", "") );
             } else {
                 if (responseObj.items && responseObj.items.length > 0) {
                     //If we got a good looking response, update the UI
@@ -573,6 +671,55 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
     this.controller.modelChanged(thisWidgetSetup.model);
 }
 
+//Update the list with history items
+MainAssistant.prototype.updateHistoryList = function(history) {
+    var thisWidgetSetup = this.controller.getWidgetSetup("searchResultsList");
+    thisWidgetSetup.model.items = []; //remove the previous list
+
+    for (var i = 0; i < history.length; i++) {
+        var item = history[i];
+        var displayTitle = item.title;
+        var displayDetails = this.formatHistoryDate(item.timestamp);
+
+        // Show pending items in italics
+        if (item.pending) {
+            displayTitle = item.title;
+            displayDetails = "(Pending)";
+        }
+
+        var newItem = {
+            youtubeId: this.extractVideoId(item.url) || ("history_" + i),
+            videoName: displayTitle,
+            videoDetails: displayDetails,
+            selectedState: false,
+            historyUrl: item.url,  // Store full URL for playback
+            thumbnail: "",
+            imageWidth: "0px",
+            imgPos: "0px 0px",
+            titleMargin: "8px",
+            detailClass: this.DeviceType === "TouchPad" ? "touchpad" : ""
+        };
+        thisWidgetSetup.model.items.push(newItem);
+    }
+
+    $("spnResultsTitle").innerHTML = "History";
+    $("showResultsList").style.display = "block";
+    this.controller.modelChanged(thisWidgetSetup.model);
+};
+
+//Extract YouTube video ID from URL
+MainAssistant.prototype.extractVideoId = function(url) {
+    var match = url.match(/[?&]v=([^&]+)/);
+    return match ? match[1] : null;
+};
+
+//Format timestamp for display
+MainAssistant.prototype.formatHistoryDate = function(timestamp) {
+    var date = new Date(timestamp);
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear();
+};
+
 //Ask for more details about a video
 MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
     this.itemToUpdate = item;
@@ -608,10 +755,93 @@ MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
     }.bind(this));
 }
 
+//Add a video to the history list
+MainAssistant.prototype.addToHistory = function(url, title) {
+    var history = appModel.AppSettingsCurrent["VideoHistory"] || [];
+
+    // Skip if URL already exists in history
+    for (var i = 0; i < history.length; i++) {
+        if (history[i].url === url) {
+            return;
+        }
+    }
+
+    // Add new entry at beginning
+    history.unshift({
+        url: url,
+        title: title || url,
+        timestamp: new Date().getTime()
+    });
+
+    // Limit to 10 items
+    if (history.length > 10) {
+        history = history.slice(0, 10);
+    }
+
+    appModel.AppSettingsCurrent["VideoHistory"] = history;
+    appModel.SaveSettings();
+};
+
+//Add a pending video request to history (when app is busy)
+MainAssistant.prototype.addToPendingHistory = function(url) {
+    var history = appModel.AppSettingsCurrent["VideoHistory"] || [];
+
+    // Skip if URL already exists in history
+    for (var i = 0; i < history.length; i++) {
+        if (history[i].url === url) {
+            return;
+        }
+    }
+
+    // Add new entry at beginning with pending flag
+    history.unshift({
+        url: url,
+        title: url,
+        timestamp: new Date().getTime(),
+        pending: true
+    });
+
+    // Limit to 10 items
+    if (history.length > 10) {
+        history = history.slice(0, 10);
+    }
+
+    appModel.AppSettingsCurrent["VideoHistory"] = history;
+    appModel.SaveSettings();
+};
+
+//Clear pending flag from a history item (when video is actually requested)
+MainAssistant.prototype.clearPendingFlag = function(url, title) {
+    var history = appModel.AppSettingsCurrent["VideoHistory"] || [];
+    var changed = false;
+
+    for (var i = 0; i < history.length; i++) {
+        if (history[i].url === url && history[i].pending) {
+            history[i].pending = false;
+            // Update title if we have a better one now
+            if (title && title !== url) {
+                history[i].title = title;
+            }
+            changed = true;
+            break;
+        }
+    }
+
+    if (changed) {
+        appModel.AppSettingsCurrent["VideoHistory"] = history;
+        appModel.SaveSettings();
+    }
+};
+
 //Depending on history, either get previously accessed video, or request a new one from the service
 MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     Mojo.Log.info("Direct video requested: " + videoRequest);
     $("showResultsList").style.display = "none";
+
+    // Add to video history (or clear pending flag if already exists)
+    var title = this.LastTappedVideo ? this.LastTappedVideo.videoName : videoRequest;
+    this.addToHistory(videoRequest, title);
+    this.clearPendingFlag(videoRequest, title);
 
     var historyPath = false;
     for (var i = 0; i < this.VideoRequests.length; i++) {
@@ -628,6 +858,8 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
     }
     if (!historyPath) {
         //Ask server for existing file list so we can determine when a new file is ready
+        this.disableUI("Preparing...");
+        Mojo.Log.info("Getting file list from server before requesting video");
         metubeModel.DoMeTubeListRequest(function(response) {
             //Mojo.Log.info("Server file list now: " + response);
             /* Note: This house-of-cards depends on each request from all users creating a new file on the server
@@ -649,6 +881,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
                 this.addFile(videoRequest);
             } else {
                 Mojo.Log.error("No usable response from server while sending list request: " + response);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Server list error" }, "", "");
                 Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity and/or self-host settings.");
             }
         }.bind(this));
@@ -662,7 +895,8 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 //Ask MeTube to prepare a new video file for us
 MainAssistant.prototype.addFile = function(theFile) {
     Mojo.Log.info("Submitting file request to server: " + theFile);
-    
+    this.disableUI("Requesting...");
+
     systemModel.LockVolumeKeys();
 
     var quality = "bestvideo";
@@ -676,6 +910,7 @@ MainAssistant.prototype.addFile = function(theFile) {
                 var responseObj = JSON.parse(response);
             } catch (e) {
                 Mojo.Log.error("Error parsing server response");
+                Mojo.Controller.getAppController().showBanner({ messageText: "Server response error" }, "", "");
                 Mojo.Additions.ShowDialogBox("Parse Error", "The server response could not be parsed: " + response);
             }
             if (responseObj.status == "ok") {
@@ -699,21 +934,24 @@ MainAssistant.prototype.addFile = function(theFile) {
                 }
                 //Start checking for status/new files on server
                 if (this.UseStatusPolling && this.CurrentJobId) {
-                    this.disableUI("Fetching");
+                    this.disableUI("Fetching...");
                     this.FileCheckInt = setInterval(this.checkJobStatus.bind(this), 2000);
                 } else {
+                    this.disableUI("Checking...");
                     this.FileCheckInt = setInterval(this.checkForNewFiles.bind(this), 2000);
                 }
             } else {
                 this.enableUI();
 
                 Mojo.Log.error("Server Error while adding new file request" + responseObj.msg);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Server add file error" }, "", "");
                 Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
             }
         } else {
             this.enableUI();
 
             Mojo.Log.error("No usable response from server while adding new file request: " + response);
+            Mojo.Controller.getAppController().showBanner({ messageText: "Server response unusable" }, "", "");
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity and/or self-host settings.");
         }
     }.bind(this));
@@ -721,18 +959,31 @@ MainAssistant.prototype.addFile = function(theFile) {
 
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
+    var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
+    if (this.RequestConvert)
+        useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
+
+    Mojo.Log.info("Checking for new files, attempt " + this.timeOutCount + "/" + useTimeout);
+
+    // Update status display with attempt count (only if in foreground)
+    if (!this.isInBackground) {
+        var statusText = "Checking (" + this.timeOutCount + "/" + useTimeout + ")...";
+        this.disableUI(statusText);
+    }
+
     metubeModel.DoMeTubeListRequest(function(response) {
         if (response && response != "") {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "error") {
                 clearInterval(this.FileCheckInt);
                 Mojo.Log.error("Error message from server while checking for new files: " + responseObj.msg);
-                Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the check file request with: " + responseObj.msg.replace("ERROR: ", ""));
+                Mojo.Controller.getAppController().showBanner({ messageText: "Server check file error" }, "", "");
+                if (!this.isInBackground) {
+                    Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the check file request with: " + responseObj.msg.replace("ERROR: ", ""));
+                }
+                this.enableUI();
             } else {
                 checkList = responseObj;
-                var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
-                if (this.RequestConvert)
-                    useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
                 Mojo.Log.info("Checking for new files with convert=" + this.RequestConvert + ", attempt " + this.timeOutCount + "/" + useTimeout);
                 if (this.timeOutCount <= useTimeout) {
                     if (checkList.files && checkList.files.length > this.FileList.files.length) {
@@ -748,6 +999,11 @@ MainAssistant.prototype.checkForNewFiles = function() {
                                     updateVideoRequest.videoPath = videoPath;
                                     this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
 
+                                    // Show banner if in background
+                                    if (this.isInBackground) {
+                                        Mojo.Controller.getAppController().showBanner({ messageText: "Video ready!" }, "", "");
+                                    }
+
                                     //Play the video
                                     this.playPreparedVideo(videoPath, true);
                                 }
@@ -756,7 +1012,10 @@ MainAssistant.prototype.checkForNewFiles = function() {
                             }
                         } else {
                             Mojo.Log.error("Unable to find a video file to play!");
-                            Mojo.Additions.ShowDialogBox("Server Response Problem", "Could not understand the file payload from the server response. The video cannot be found or played.");
+                            Mojo.Controller.getAppController().showBanner({ messageText: "Server file payload error" }, "", "");
+                            if (!this.isInBackground) {
+                                Mojo.Additions.ShowDialogBox("Server Response Problem", "Could not understand the file payload from the server response. The video cannot be found or played.");
+                            }
                             clearInterval(this.FileCheckInt);
                             this.enableUI();
                         }
@@ -764,17 +1023,22 @@ MainAssistant.prototype.checkForNewFiles = function() {
                     this.timeOutCount++;
                 } else {
                     Mojo.Log.warn("No new file found on server before timeout. Giving up now!");
-                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. You can increase the timeout in Preferences, or try a different video.");
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Fetch Timeout!" }, "", "");
+                    if (!this.isInBackground) {
+                        Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be found on server before timeout.<br>The video may be too long to process in time, or its possible the server just needs to do some clean-up. You can increase the timeout in Preferences, or try a different video.");
+                        this.showHistoryForRetry();
+                    }
                     clearInterval(this.FileCheckInt);
-
                     this.enableUI();
                 }
             }
         } else {
             Mojo.Log.error("No usable response from server while checking for new files: " + response);
-            Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity, proxy and/or self-host settings.");
+            Mojo.Controller.getAppController().showBanner({ messageText: "Server check file unusable" }, "", "");
+            if (!this.isInBackground) {
+                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity, proxy and/or self-host settings.");
+            }
             clearInterval(this.FileCheckInt);
-
             this.enableUI();
         }
     }.bind(this));
@@ -813,15 +1077,20 @@ MainAssistant.prototype.checkJobStatus = function() {
                 this.timeOutCount++;
                 if (this.timeOutCount > useTimeout) {
                     clearInterval(this.FileCheckInt);
-                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "Could not get status for this job before timeout.");
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Status Timeout!" }, "", "");
+                    if (!this.isInBackground) {
+                        Mojo.Additions.ShowDialogBox("Timeout Exceeded", "Could not get status for this job before timeout.");
+                    }
                     this.enableUI();
                 }
                 return;
             }
 
-            // Update UI with current status and progress
-            var statusText = this.formatStatusText(responseObj.status, responseObj.progress);
-            this.disableUI(statusText);
+            // Update UI with current status and progress (only if in foreground)
+            if (!this.isInBackground) {
+                var statusText = this.formatStatusText(responseObj.status, responseObj.progress);
+                this.disableUI(statusText);
+            }
 
             if (responseObj.status == "ready") {
                 // Video is ready!
@@ -834,6 +1103,11 @@ MainAssistant.prototype.checkJobStatus = function() {
                 updateVideoRequest.videoPath = videoPath;
                 this.VideoRequests[this.VideoRequests.length - 1] = updateVideoRequest;
 
+                // Show banner if in background
+                if (this.isInBackground) {
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Video ready!" }, "", "");
+                }
+
                 // Play the video
                 this.playPreparedVideo(videoPath, true);
 
@@ -842,7 +1116,10 @@ MainAssistant.prototype.checkJobStatus = function() {
                 Mojo.Log.error("Job failed: " + (responseObj.error || "Unknown error"));
                 clearInterval(this.FileCheckInt);
                 var errorMsg = responseObj.error ? responseObj.error.substring(0, 200) : "The video could not be processed.";
-                Mojo.Additions.ShowDialogBox("Processing Failed", errorMsg);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Job failed!" }, "", "");
+                if (!this.isInBackground) {
+                    Mojo.Additions.ShowDialogBox("Processing Failed", errorMsg);
+                }
                 this.enableUI();
 
             } else {
@@ -851,7 +1128,11 @@ MainAssistant.prototype.checkJobStatus = function() {
                 if (this.timeOutCount > useTimeout) {
                     Mojo.Log.warn("Timeout exceeded while waiting for job to complete");
                     clearInterval(this.FileCheckInt);
-                    Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be prepared before timeout.<br>The video may be too long to process in time. You can increase the timeout in Preferences, or try a different video.");
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Video Prep Timeout!" }, "", "");
+                    if (!this.isInBackground) {
+                        Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be prepared before timeout.<br>The video may be too long to process in time. You can increase the timeout in Preferences, or try a different video.");
+                        this.showHistoryForRetry();
+                    }
                     this.enableUI();
                 }
             }
@@ -1022,6 +1303,7 @@ MainAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
        this scene is popped or another scene is pushed on top */
     Mojo.Event.stopListening(this.controller.get("btnGetVideo"), Mojo.Event.tap, this.handleClick);
+    Mojo.Event.stopListening(this.controller.get("btnHistory"), Mojo.Event.tap, this.handleHistoryClick);
     Mojo.Event.stopListening(this.controller.get("searchResultsList"), Mojo.Event.listTap, this.handleListClick);
     // Non-Mojo widgets
     $("btnClear").removeEventListener("click", this.handleClearTap);

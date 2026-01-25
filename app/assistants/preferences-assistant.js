@@ -24,12 +24,12 @@ PreferencesAssistant.prototype.setup = function() {
         this.attributes = {
             label: $L("Convert Time"),
             choices: [
-                { label: "10 seconds", value: 5 },
-                { label: "30 seconds", value: 15 },
-                { label: "1 minute", value: 30 },
-                { label: "1.5 minutes", value: 45 },
-                { label: "2 minutes", value: 60 },
-                { label: "3 minutes", value: 90 },
+                { label: "10 seconds", value: 10 },
+                { label: "30 seconds", value: 30 },
+                { label: "1 minute", value: 60 },
+                { label: "1.5 minutes", value: 90 },
+                { label: "2 minutes", value: 120 },
+                { label: "3 minutes", value: 180 },
             ]
         },
         this.model = {

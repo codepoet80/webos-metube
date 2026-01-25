@@ -126,15 +126,21 @@ SystemModel.prototype.AllowDisplaySleep = function(stageController) {
 
 //Prevent the display from sleeping
 SystemModel.prototype.PreventDisplaySleep = function(stageController) {
-    if (!stageController)
-        stageController = Mojo.Controller.getAppController().getActiveStageController();
+    try {
+        if (!stageController)
+            stageController = Mojo.Controller.getAppController().getActiveStageController();
 
-    //Ask the System to stay awake while timer is running
-    Mojo.Log.info("Preventing display sleep");
+        //Ask the System to stay awake while timer is running
+        Mojo.Log.info("Preventing display sleep");
 
-    stageController.setWindowProperties({
-        blockScreenTimeout: true
-    });
+        stageController.setWindowProperties({
+            blockScreenTimeout: true
+        });
+    } catch(e) {
+        //If the stage is not active (app in background), this will fail
+        //  The download will continue anyway, just without preventing sleep
+        Mojo.Log.warn("Could not prevent display sleep - app may be in background");
+    }
 }
 
 //Show a notification window in its own small stage

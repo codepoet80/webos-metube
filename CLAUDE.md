@@ -95,11 +95,12 @@ MetubeModel.prototype.encodeRequest = function(request) {
 this.FileCheckInt        // Polling interval handle
 this.FileList            // Snapshot of files before request
 this.FileToFind          // Target filename from server
-this.CurrentJobId        // Job ID for status tracking (new)
-this.UseStatusPolling    // Whether to use status.php (new)
-this.VideoRequests       // History for deduplication
+this.CurrentJobId        // Job ID for status tracking
+this.UseStatusPolling    // Whether to use status.php
+this.VideoRequests       // Session history for deduplication
 this.RequestConvert      // Whether conversion was requested
 this.DownloadFirst       // Download-then-play vs streaming strategy
+this.isInBackground      // Whether app is in background (for notifications)
 ```
 
 ## UI Patterns
@@ -144,6 +145,52 @@ User preferences stored via `appModel.AppSettingsCurrent`:
 - `PlaybackStrategy` - "stream" or "download"
 - `TimeoutMax` - Max polling attempts before timeout
 - `UseCustomEndpoint` / `EndpointURL` - Custom server
+- `VideoHistory` - Array of recently requested videos (max 10)
+
+## History Feature
+
+The app maintains a history of the last 10 requested videos, allowing users to easily retry or replay.
+
+### History Item Structure
+```javascript
+{
+    url: "https://www.youtube.com/watch?v=...",
+    title: "Video Title",
+    timestamp: 1673800000000,
+    pending: false  // true if added while app was busy
+}
+```
+
+### Key Functions
+- `addToHistory(url, title)` - Adds video to history (skips if URL already exists)
+- `addToPendingHistory(url)` - Adds as "pending" when app is busy fetching another video
+- `clearPendingFlag(url, title)` - Clears pending status when video is played
+- `handleHistoryClick()` - Shows history list when History button tapped
+- `updateHistoryList(history)` - Populates list widget with history items
+
+### Pending Videos
+When another app requests a video via URL handler while MeTube is busy:
+1. Video is added to history with `pending: true`
+2. Displayed in italics with "Pending" label
+3. User can tap later to retry
+4. Pending flag clears when user taps the item
+
+### Menu Option
+"Clear History" in app menu clears all history after confirmation.
+
+## Background Handling
+
+The app tracks foreground/background state via `this.isInBackground`:
+- Set `false` on `stageActivate` event
+- Set `true` on `stageDeactivate` event
+
+### Background Behavior
+| Event | Foreground | Background |
+|-------|------------|------------|
+| Progress updates | Spinner + status text | Silent (no UI updates) |
+| Video ready | Plays video | Banner + plays video |
+| Error/Timeout | Banner + Dialog | Banner only |
+| Job failed | Banner + Dialog | Banner only |
 
 ## Debugging
 
@@ -167,10 +214,10 @@ View logs: In webOS emulator or device, use `palm-log` command or novacom.
 **Playback fails on Pre/Pre2**: Try enabling "Convert First" in menu, or use "download" playback strategy.
 
 ### Key Debug Points in main-assistant.js
-- Line ~670: `addFile()` - Check server response, job_id
-- Line ~784: `checkJobStatus()` - Status polling logic
-- Line ~723: `checkForNewFiles()` - Legacy list polling
-- Line ~866: `formatStatusText()` - Status display formatting
+- Line ~896: `addFile()` - Check server response, job_id
+- Line ~1048: `checkJobStatus()` - Status polling logic
+- Line ~961: `checkForNewFiles()` - Legacy list polling
+- Line ~1147: `formatStatusText()` - Status display formatting
 
 ### Test Status Polling
 To verify status polling works:
