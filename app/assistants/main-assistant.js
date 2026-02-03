@@ -28,6 +28,7 @@ MainAssistant.prototype.setup = function() {
     this.FileToFind = false;
     this.CurrentJobId = null; // Job ID for status tracking
     this.UseStatusPolling = true; // Try status.php first, fall back to list polling if unavailable
+    this.lastStatusProgress = null; // Track last progress for smart timeout (only timeout if stalled)
     this.VideoRequests = []; //Keep a history of requests, to help resolve race conditions on the server.
     this.isInBackground = false; // Track if app is in background for notification handling
     //TODO: We could be even more resilient if we saved this in a preference.
@@ -572,9 +573,14 @@ MainAssistant.prototype.enableUI = function() {
 MainAssistant.prototype.searchYouTube = function(videoRequest) {
     Mojo.Log.info("Search requested: " + videoRequest)
     this.SearchValue = videoRequest;
-    metubeModel.DoMeTubeSearchRequest(videoRequest, appModel.AppSettingsCurrent["SearchResultMax"], function(response) {
+    metubeModel.DoMeTubeSearchRequest(videoRequest, appModel.AppSettingsCurrent["SearchResultMax"], function(response, error) {
         //Mojo.Log.info("ready to process search results: " + response);
-        if (response != null && response != "") {
+        if (error) {
+            Mojo.Log.error("Search request failed with error: " + error);
+            Mojo.Controller.getAppController().showBanner({ messageText: "Search " + error }, "", "");
+            var errorMsg = error == "timeout" ? "The search request timed out. The server may be down or your network connection may be slow." : "A network error occurred. Check your WiFi connection.";
+            Mojo.Additions.ShowDialogBox("Connection Error", errorMsg);
+        } else if (response != null && response != "") {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "error") {
                 Mojo.Log.error("Error message from server while searching YouTube: " + responseObj.msg);
@@ -717,14 +723,23 @@ MainAssistant.prototype.extractVideoId = function(url) {
 MainAssistant.prototype.formatHistoryDate = function(timestamp) {
     var date = new Date(timestamp);
     var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return months[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear();
+    var hours = date.getHours();
+    var minutes = date.getMinutes();
+    var ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    var minutesStr = minutes < 10 ? "0" + minutes : minutes;
+    return months[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear() + " " + hours + ":" + minutesStr + " " + ampm;
 };
 
 //Ask for more details about a video
 MainAssistant.prototype.updateVideoDetails = function(item, videoId) {
     this.itemToUpdate = item;
-    metubeModel.DoMeTubeDetailsRequest(videoId, function(response) {
-        if (response) {
+    metubeModel.DoMeTubeDetailsRequest(videoId, function(response, error) {
+        if (error) {
+            Mojo.Log.error("Details request failed with error: " + error);
+            // Details are optional, so just log the error without bothering the user
+        } else if (response) {
             var responseObj = JSON.parse(response);
             if (responseObj.status && responseObj.status == "error") {
                 Mojo.Log.error("Error message from server while getting video details: " + responseObj.msg);
@@ -860,7 +875,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
         //Ask server for existing file list so we can determine when a new file is ready
         this.disableUI("Preparing...");
         Mojo.Log.info("Getting file list from server before requesting video");
-        metubeModel.DoMeTubeListRequest(function(response) {
+        metubeModel.DoMeTubeListRequest(function(response, error) {
             //Mojo.Log.info("Server file list now: " + response);
             /* Note: This house-of-cards depends on each request from all users creating a new file on the server
                 which this client will find by comparing the file list before its request, to the file list after
@@ -870,7 +885,13 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
                 nothing about users, or even having any state stored between requests and results. We will attempt to
                 further mitigate by storing some state in the client-side.
             */
-            if (response != null && response != "") {
+            if (error) {
+                this.enableUI();
+                Mojo.Log.error("List request failed with error: " + error);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Connection " + error }, "", "");
+                var errorMsg = error == "timeout" ? "The request timed out. The server may be down or your network connection may be slow." : "A network error occurred. Check your WiFi connection.";
+                Mojo.Additions.ShowDialogBox("Connection Error", errorMsg);
+            } else if (response != null && response != "") {
                 this.FileList = JSON.parse(response);
 
                 //Update the video request history (store state in the client-side)
@@ -880,6 +901,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
                 //Ask server for a new file
                 this.addFile(videoRequest);
             } else {
+                this.enableUI();
                 Mojo.Log.error("No usable response from server while sending list request: " + response);
                 Mojo.Controller.getAppController().showBanner({ messageText: "Server list error" }, "", "");
                 Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the list request. Check network connectivity and/or self-host settings.");
@@ -893,9 +915,12 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 }
 
 //Ask MeTube to prepare a new video file for us
-MainAssistant.prototype.addFile = function(theFile) {
-    Mojo.Log.info("Submitting file request to server: " + theFile);
-    this.disableUI("Requesting...");
+MainAssistant.prototype.addFile = function(theFile, retryCount) {
+    if (retryCount === undefined) retryCount = 0;
+    var maxRetries = 2;
+
+    Mojo.Log.info("Submitting file request to server: " + theFile + (retryCount > 0 ? " (retry " + retryCount + ")" : ""));
+    this.disableUI(retryCount > 0 ? "Retrying..." : "Requesting...");
 
     systemModel.LockVolumeKeys();
 
@@ -904,17 +929,34 @@ MainAssistant.prototype.addFile = function(theFile) {
         quality = appModel.AppSettingsCurrent["HDQuality"];
 
     Mojo.Log.info("QUALITY: " + quality + ", Preference: " + appModel.AppSettingsCurrent["HDQuality"]);
-    metubeModel.DoMeTubeAddRequest(theFile, quality, this.RequestConvert, function(response) {
-        if (response && response != "" && response.indexOf("status") != -1) {
+    metubeModel.DoMeTubeAddRequest(theFile, quality, this.RequestConvert, function(response, error) {
+        if (error) {
+            // Retry on transient errors
+            if (retryCount < maxRetries) {
+                Mojo.Log.warn("Add request failed with " + error + ", retrying in 1 second...");
+                setTimeout(function() {
+                    this.addFile(theFile, retryCount + 1);
+                }.bind(this), 1000);
+                return;
+            }
+            this.enableUI();
+            systemModel.ClearVolumeKeys();
+            Mojo.Log.error("Add request failed with error after " + maxRetries + " retries: " + error);
+            Mojo.Controller.getAppController().showBanner({ messageText: "Connection " + error }, "", "");
+            var errorMsg = error == "timeout" ? "The request timed out. The server may be down or your network connection may be slow." : "A network error occurred. Check your WiFi connection.";
+            Mojo.Additions.ShowDialogBox("Connection Error", errorMsg);
+        } else if (response && response != "" && response.indexOf("status") != -1) {
             try {
                 var responseObj = JSON.parse(response);
             } catch (e) {
                 Mojo.Log.error("Error parsing server response");
                 Mojo.Controller.getAppController().showBanner({ messageText: "Server response error" }, "", "");
                 Mojo.Additions.ShowDialogBox("Parse Error", "The server response could not be parsed: " + response);
+                return;
             }
             if (responseObj.status == "ok") {
                 this.timeOutCount = 0;
+                this.lastStatusProgress = null; // Reset progress tracker for smart timeout
                 if (responseObj.target && responseObj.target != "") {
                     this.FileToFind = responseObj.target;
                     Mojo.Log.warn("The server specified a file to watch for: " + this.FileToFind)
@@ -948,9 +990,17 @@ MainAssistant.prototype.addFile = function(theFile) {
                 Mojo.Additions.ShowDialogBox("Server Error", "The server responded to the add file request with: " + responseObj.msg.replace("ERROR: ", ""));
             }
         } else {
+            // Retry on unusable response (could be transient)
+            if (retryCount < maxRetries) {
+                Mojo.Log.warn("Unusable response from server, retrying in 1 second...");
+                setTimeout(function() {
+                    this.addFile(theFile, retryCount + 1);
+                }.bind(this), 1000);
+                return;
+            }
             this.enableUI();
 
-            Mojo.Log.error("No usable response from server while adding new file request: " + response);
+            Mojo.Log.error("No usable response from server after " + maxRetries + " retries: " + response);
             Mojo.Controller.getAppController().showBanner({ messageText: "Server response unusable" }, "", "");
             Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer the add file request with a usable response. Check network connectivity and/or self-host settings.");
         }
@@ -959,9 +1009,8 @@ MainAssistant.prototype.addFile = function(theFile) {
 
 //Compare the list of files we know about with the files the server has to see what's new
 MainAssistant.prototype.checkForNewFiles = function() {
-    var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
-    if (this.RequestConvert)
-        useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
+    // Fallback polling for servers without status.php - use generous timeout
+    var useTimeout = 90; // 3 minutes of polling (90 polls × 2 sec)
 
     Mojo.Log.info("Checking for new files, attempt " + this.timeOutCount + "/" + useTimeout);
 
@@ -971,8 +1020,21 @@ MainAssistant.prototype.checkForNewFiles = function() {
         this.disableUI(statusText);
     }
 
-    metubeModel.DoMeTubeListRequest(function(response) {
-        if (response && response != "") {
+    metubeModel.DoMeTubeListRequest(function(response, error) {
+        if (error) {
+            Mojo.Log.error("List request in checkForNewFiles failed with error: " + error);
+            // Don't stop polling immediately on a single error, just count it as a timeout attempt
+            this.timeOutCount++;
+            if (this.timeOutCount > useTimeout) {
+                clearInterval(this.FileCheckInt);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Connection " + error }, "", "");
+                if (!this.isInBackground) {
+                    var errorMsg = error == "timeout" ? "Connection timed out while checking for video. The server may be down or your network connection may be slow." : "A network error occurred while checking for video. Check your WiFi connection.";
+                    Mojo.Additions.ShowDialogBox("Connection Error", errorMsg);
+                }
+                this.enableUI();
+            }
+        } else if (response && response != "") {
             var responseObj = JSON.parse(response);
             if (responseObj.status == "error") {
                 clearInterval(this.FileCheckInt);
@@ -1033,27 +1095,49 @@ MainAssistant.prototype.checkForNewFiles = function() {
                 }
             }
         } else {
-            Mojo.Log.error("No usable response from server while checking for new files: " + response);
-            Mojo.Controller.getAppController().showBanner({ messageText: "Server check file unusable" }, "", "");
-            if (!this.isInBackground) {
-                Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity, proxy and/or self-host settings.");
+            // Unusable response - might be transient, don't stop immediately
+            Mojo.Log.warn("Unusable response from server while checking for new files (attempt " + this.timeOutCount + "): " + response);
+            this.timeOutCount++;
+            if (this.timeOutCount > useTimeout) {
+                Mojo.Log.error("Too many unusable responses, giving up");
+                Mojo.Controller.getAppController().showBanner({ messageText: "Server check file unusable" }, "", "");
+                if (!this.isInBackground) {
+                    Mojo.Additions.ShowDialogBox("Server Error", "The server did not answer with a usable response to the check file request. Check network connectivity, proxy and/or self-host settings.");
+                }
+                clearInterval(this.FileCheckInt);
+                this.enableUI();
             }
-            clearInterval(this.FileCheckInt);
-            this.enableUI();
         }
     }.bind(this));
 }
 
 //Check job status via status.php endpoint (with progress tracking)
 MainAssistant.prototype.checkJobStatus = function() {
-    var useTimeout = appModel.AppSettingsCurrent["TimeoutMax"];
-    if (this.RequestConvert)
-        useTimeout = useTimeout + 50; //Allow extra time for conversion if requested
+    // Smart timeout: only timeout if progress stalls, not based on total time
+    // This is the max number of polls (2 sec each) without progress change before giving up
+    var useTimeout = 15; // 30 seconds of no progress
 
-    Mojo.Log.info("Checking job status for " + this.CurrentJobId + ", attempt " + this.timeOutCount + "/" + useTimeout);
+    Mojo.Log.info("Checking job status for " + this.CurrentJobId + ", stall count " + this.timeOutCount + "/" + useTimeout);
 
-    metubeModel.DoMeTubeStatusRequest(this.CurrentJobId, this.FileToFind, function(response) {
-        // If status endpoint not available, fall back to list polling
+    metubeModel.DoMeTubeStatusRequest(this.CurrentJobId, this.FileToFind, function(response, error) {
+        // Handle connection errors (timeout or network error)
+        if (error) {
+            Mojo.Log.error("Status request failed with error: " + error);
+            // Connection errors count toward stall timeout
+            this.timeOutCount++;
+            if (this.timeOutCount > useTimeout) {
+                clearInterval(this.FileCheckInt);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Connection " + error }, "", "");
+                if (!this.isInBackground) {
+                    var errorMsg = error == "timeout" ? "Connection timed out while checking status. The server may be down or your network connection may be slow." : "A network error occurred while checking status. Check your WiFi connection.";
+                    Mojo.Additions.ShowDialogBox("Connection Error", errorMsg);
+                }
+                this.enableUI();
+            }
+            return;
+        }
+
+        // If status endpoint not available (404), fall back to list polling
         if (response === null) {
             Mojo.Log.warn("Status endpoint not available, switching to list polling");
             this.UseStatusPolling = false;
@@ -1086,6 +1170,17 @@ MainAssistant.prototype.checkJobStatus = function() {
                 return;
             }
 
+            // Build a progress key to detect changes (status + progress value)
+            var currentProgress = responseObj.status + ":" + (responseObj.progress !== undefined ? responseObj.progress : "");
+
+            // Smart timeout: reset counter if progress changed, increment if stalled
+            if (this.lastStatusProgress !== null && currentProgress !== this.lastStatusProgress) {
+                // Progress changed - reset stall counter
+                Mojo.Log.info("Progress updated: " + currentProgress + " (was: " + this.lastStatusProgress + ")");
+                this.timeOutCount = 0;
+            }
+            this.lastStatusProgress = currentProgress;
+
             // Update UI with current status and progress (only if in foreground)
             if (!this.isInBackground) {
                 var statusText = this.formatStatusText(responseObj.status, responseObj.progress);
@@ -1096,6 +1191,7 @@ MainAssistant.prototype.checkJobStatus = function() {
                 // Video is ready!
                 Mojo.Log.info("Job complete! Video is ready: " + this.FileToFind);
                 clearInterval(this.FileCheckInt);
+                this.lastStatusProgress = null; // Reset for next request
 
                 // Update video request history
                 var videoPath = this.FileToFind;
@@ -1115,6 +1211,7 @@ MainAssistant.prototype.checkJobStatus = function() {
                 // Download/conversion failed
                 Mojo.Log.error("Job failed: " + (responseObj.error || "Unknown error"));
                 clearInterval(this.FileCheckInt);
+                this.lastStatusProgress = null; // Reset for next request
                 var errorMsg = responseObj.error ? responseObj.error.substring(0, 200) : "The video could not be processed.";
                 Mojo.Controller.getAppController().showBanner({ messageText: "Job failed!" }, "", "");
                 if (!this.isInBackground) {
@@ -1124,13 +1221,15 @@ MainAssistant.prototype.checkJobStatus = function() {
 
             } else {
                 // Still processing (queued, downloading, converting)
+                // Only increment stall counter (timeout already handled above via progress comparison)
                 this.timeOutCount++;
                 if (this.timeOutCount > useTimeout) {
-                    Mojo.Log.warn("Timeout exceeded while waiting for job to complete");
+                    Mojo.Log.warn("Progress stalled for too long, giving up");
                     clearInterval(this.FileCheckInt);
-                    Mojo.Controller.getAppController().showBanner({ messageText: "Video Prep Timeout!" }, "", "");
+                    this.lastStatusProgress = null; // Reset for next request
+                    Mojo.Controller.getAppController().showBanner({ messageText: "Progress Stalled!" }, "", "");
                     if (!this.isInBackground) {
-                        Mojo.Additions.ShowDialogBox("Timeout Exceeded", "The video file couldn't be prepared before timeout.<br>The video may be too long to process in time. You can increase the timeout in Preferences, or try a different video.");
+                        Mojo.Additions.ShowDialogBox("Progress Stalled", "The video processing appears to have stalled (no progress for " + useTimeout + " checks).<br>The server may be overloaded. You can try again later.");
                         this.showHistoryForRetry();
                     }
                     this.enableUI();

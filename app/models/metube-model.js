@@ -1,6 +1,6 @@
 /*
 MeTube Model - Mojo
- Version 1.3
+ Version 1.4
  Created: 2020
  Author: Jon W
  License: MIT
@@ -12,6 +12,7 @@ var MetubeModel = function() {
 };
 
 //Properties
+MetubeModel.prototype.RequestTimeout = 30000; // 30 second default timeout
 MetubeModel.prototype.UseCustomGoogleAPIKey = false;
 MetubeModel.prototype.CustomGoogleAPIKey = "";
 MetubeModel.prototype.UseCustomClientAPIKey = false;
@@ -51,19 +52,43 @@ MetubeModel.prototype.DoMeTubeAddRequest = function(videoURL, quality, convert, 
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
+    var requestComplete = false;
+    var timeoutHandle = setTimeout(function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            Mojo.Log.error("Add request timed out after " + this.RequestTimeout + "ms");
+            xmlhttp.abort();
+            if (callback) callback(null, "timeout");
+        }
+    }.bind(this), this.RequestTimeout);
+
     xmlhttp.open("POST", useURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.setRequestHeader("Convert", convert);
     xmlhttp.setRequestHeader("Quality", quality);
     xmlhttp.send(this.encodeRequest(videoURL));
+    xmlhttp.onerror = function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            Mojo.Log.error("Add request network error");
+            if (callback) callback(null, "network_error");
+        }
+    }.bind(this);
     xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE && !requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
             if (xmlhttp.status == 404) {
                 Mojo.Log.error("Service returned 404 requesting video details. If the service is online, there's probably a version mismatch between service and client.");
                 if (this.ServiceCompatWarning == 0) {
                     Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, video source not suppored." }, "", "");
                     this.ServiceCompatWarning++;
                 }
+            } else if (xmlhttp.status == 0 || xmlhttp.status >= 500) {
+                // Connection failed (status 0) or server error (5xx)
+                Mojo.Log.error("Add request failed with HTTP status: " + xmlhttp.status);
+                if (callback) callback(null, "http_" + xmlhttp.status);
             } else {
                 //Mojo.Log.info("Details response: " + xmlhttp.responseText);
                 if (callback) callback(xmlhttp.responseText);
@@ -79,13 +104,37 @@ MetubeModel.prototype.DoMeTubeListRequest = function(callback) {
         callback = callback.bind(this);
 
     var xmlhttp = new XMLHttpRequest();
+    var requestComplete = false;
+    var timeoutHandle = setTimeout(function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            Mojo.Log.error("List request timed out after " + this.RequestTimeout + "ms");
+            xmlhttp.abort();
+            if (callback) callback(null, "timeout");
+        }
+    }.bind(this), this.RequestTimeout);
+
     xmlhttp.open("GET", this.buildURL("list"));
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
+    xmlhttp.onerror = function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            Mojo.Log.error("List request network error");
+            if (callback) callback(null, "network_error");
+        }
+    }.bind(this);
     xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
-            if (callback)
+        if (xmlhttp.readyState == XMLHttpRequest.DONE && !requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            if (xmlhttp.status == 0 || xmlhttp.status >= 500) {
+                Mojo.Log.error("List request failed with HTTP status: " + xmlhttp.status);
+                if (callback) callback(null, "http_" + xmlhttp.status);
+            } else if (callback) {
                 callback(xmlhttp.responseText);
+            }
         }
     }.bind(this);
 }
@@ -101,14 +150,38 @@ MetubeModel.prototype.DoMeTubeSearchRequest = function(searchString, numResults,
     //Mojo.Log.info("Asking server to search with URL: " + searchURL);
 
     var xmlhttp = new XMLHttpRequest();
+    var requestComplete = false;
+    var timeoutHandle = setTimeout(function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            Mojo.Log.error("Search request timed out after " + this.RequestTimeout + "ms");
+            xmlhttp.abort();
+            if (callback) callback(null, "timeout");
+        }
+    }.bind(this), this.RequestTimeout);
+
     xmlhttp.open("GET", searchURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
+    xmlhttp.onerror = function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            Mojo.Log.error("Search request network error");
+            if (callback) callback(null, "network_error");
+        }
+    }.bind(this);
     xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE && !requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
             //Mojo.Log.info("Search response: " + xmlhttp.responseText);
-            if (callback)
+            if (xmlhttp.status == 0 || xmlhttp.status >= 500) {
+                Mojo.Log.error("Search request failed with HTTP status: " + xmlhttp.status);
+                if (callback) callback(null, "http_" + xmlhttp.status);
+            } else if (callback) {
                 callback(xmlhttp.responseText);
+            }
         }
     }.bind(this);
 }
@@ -124,17 +197,40 @@ MetubeModel.prototype.DoMeTubeDetailsRequest = function(videoId, callback) {
     Mojo.Log.info("Asking server for video details with URL: " + detailsURL);
 
     var xmlhttp = new XMLHttpRequest();
+    var requestComplete = false;
+    var timeoutHandle = setTimeout(function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            Mojo.Log.error("Details request timed out after " + this.RequestTimeout + "ms");
+            xmlhttp.abort();
+            if (callback) callback(null, "timeout");
+        }
+    }.bind(this), this.RequestTimeout);
+
     xmlhttp.open("GET", detailsURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
+    xmlhttp.onerror = function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            Mojo.Log.error("Details request network error");
+            if (callback) callback(null, "network_error");
+        }
+    }.bind(this);
     xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE && !requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
             if (xmlhttp.status == 404) {
                 Mojo.Log.error("Service returned 404 requesting video details. If the service is online, there's probably a version mismatch between service and client.");
                 if (this.ServiceCompatWarning == 0) {
                     Mojo.Controller.getAppController().showBanner({ messageText: "Back-end outdated, can't get details" }, "", "");
                     this.ServiceCompatWarning++;
                 }
+            } else if (xmlhttp.status == 0 || xmlhttp.status >= 500) {
+                Mojo.Log.error("Details request failed with HTTP status: " + xmlhttp.status);
+                if (callback) callback(null, "http_" + xmlhttp.status);
             } else {
                 //Mojo.Log.info("Details response: " + xmlhttp.responseText);
                 if (callback) callback(xmlhttp.responseText);
@@ -158,16 +254,39 @@ MetubeModel.prototype.DoMeTubeStatusRequest = function(jobId, target, callback) 
     Mojo.Log.info("Checking job status: " + statusURL);
 
     var xmlhttp = new XMLHttpRequest();
+    var requestComplete = false;
+    var timeoutHandle = setTimeout(function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            Mojo.Log.error("Status request timed out after " + this.RequestTimeout + "ms");
+            xmlhttp.abort();
+            if (callback) callback(null, "timeout");
+        }
+    }.bind(this), this.RequestTimeout);
+
     xmlhttp.open("GET", statusURL);
     xmlhttp.setRequestHeader("Client-Id", this.getCurrentClientKey());
     xmlhttp.send();
+    xmlhttp.onerror = function() {
+        if (!requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
+            Mojo.Log.error("Status request network error");
+            if (callback) callback(null, "network_error");
+        }
+    }.bind(this);
     xmlhttp.onreadystatechange = function() {
-        if (xmlhttp.readyState == XMLHttpRequest.DONE) {
+        if (xmlhttp.readyState == XMLHttpRequest.DONE && !requestComplete) {
+            requestComplete = true;
+            clearTimeout(timeoutHandle);
             if (xmlhttp.status == 404) {
                 // Server doesn't support status endpoint (old version)
                 // Return null to signal fallback to list polling
                 Mojo.Log.warn("Status endpoint not available, falling back to list polling");
                 if (callback) callback(null);
+            } else if (xmlhttp.status == 0 || xmlhttp.status >= 500) {
+                Mojo.Log.error("Status request failed with HTTP status: " + xmlhttp.status);
+                if (callback) callback(null, "http_" + xmlhttp.status);
             } else {
                 if (callback) callback(xmlhttp.responseText);
             }

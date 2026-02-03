@@ -19,24 +19,6 @@ PreferencesAssistant.prototype.setup = function() {
             {label: $L({value:"System Pref", key:"themeSystem"}), value: "system-theme"}
         ]},
     { value: appModel.AppSettingsCurrent["ThemePreference"] });
-    //Timeout picker
-    this.controller.setupWidget("listTimeout",
-        this.attributes = {
-            label: $L("Convert Time"),
-            choices: [
-                { label: "10 seconds", value: 10 },
-                { label: "30 seconds", value: 30 },
-                { label: "1 minute", value: 60 },
-                { label: "1.5 minutes", value: 90 },
-                { label: "2 minutes", value: 120 },
-                { label: "3 minutes", value: 180 },
-            ]
-        },
-        this.model = {
-            value: appModel.AppSettingsCurrent["TimeoutMax"],
-            disabled: false
-        }
-    );
     //Search result picker
     this.controller.setupWidget("listSearchmax",
         this.attributes = {
@@ -199,7 +181,6 @@ PreferencesAssistant.prototype.setup = function() {
 
     /* add event handlers to listen to events from widgets */
     Mojo.Event.listen(this.controller.get("listThemePreference"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
-    Mojo.Event.listen(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listStrategy"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
     Mojo.Event.listen(this.controller.get("listHDQuality"), Mojo.Event.propertyChange, this.handleValueChange.bind(this));
@@ -318,7 +299,6 @@ PreferencesAssistant.prototype.deactivate = function(event) {
     /* remove any event handlers you added in activate and do any other cleanup that should happen before
        this scene is popped or another scene is pushed on top */
     Mojo.Event.stopListening(this.controller.get("listThemePreference"), Mojo.Event.propertyChange, this.handleValueChange);
-    Mojo.Event.stopListening(this.controller.get("listTimeout"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("listSearchmax"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("listStrategy"), Mojo.Event.propertyChange, this.handleValueChange);
     Mojo.Event.stopListening(this.controller.get("listHDQuality"), Mojo.Event.propertyChange, this.handleValueChange);
