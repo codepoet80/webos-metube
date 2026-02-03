@@ -863,7 +863,9 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
         var histRequest = this.VideoRequests[i];
         var currRequestTime = new Date().getTime();
         //If this video is already in the history, and its not too old, just play that
-        if (histRequest.videoRequest == videoRequest && ((currRequestTime - histRequest.requestTime) < this.ServerCleanupTime)) {
+        //But only if the convert flag matches (converted videos can satisfy any request, unconverted only satisfy unconverted)
+        var convertMatches = !this.RequestConvert || histRequest.converted;
+        if (histRequest.videoRequest == videoRequest && convertMatches && ((currRequestTime - histRequest.requestTime) < this.ServerCleanupTime)) {
             /*  Note: there is the possibility of a race condition where the server may clean up this file
                 while it is in use during a repeat playback. You can mitigate by changing the server clean-up time
                 (both here and on the server) but be aware that doing so increases the odds of user race conditions (see below)   */
@@ -896,7 +898,7 @@ MainAssistant.prototype.findOrRequestVideo = function(videoRequest) {
 
                 //Update the video request history (store state in the client-side)
                 var requestTime = new Date().getTime();
-                this.VideoRequests.push({ "videoRequest": videoRequest, "requestTime": requestTime });
+                this.VideoRequests.push({ "videoRequest": videoRequest, "requestTime": requestTime, "converted": this.RequestConvert });
 
                 //Ask server for a new file
                 this.addFile(videoRequest);
