@@ -344,46 +344,11 @@ MainAssistant.prototype.showHistoryForRetry = function() {
 };
 
 MainAssistant.prototype.showPopupMenu = function(event) {
-
-    if ($("spnResultsTitle").innerHTML == "Results") {
-        var itemsToShow = [
-            { label: 'Share', iconPath: 'images/share-white-24.png', command: 'do-share' }
-        ]
-
-        this.controller.popupSubmenu({
-            onChoose: this.handlePopupChoose.bind(event.item),
-            placeNear: event.srcElement,
-            items: itemsToShow
-        });
-
-        return true;
-    } else
-        return false;
+    return false;
 }
 
 MainAssistant.prototype.handlePopupChoose = function(command) {
-    Mojo.Log.info("pop-up command was: " + command + " last item was " + JSON.stringify(this.LastTappedVideo.originalData));
-
-    if (command == "do-share" && this.LastTappedVideo) {
-
-        this.controller.showAlertDialog({
-            onChoose: function(value) {
-                if (value == "yes") {
-                    shareServiceModel.DoShareAddRequest(JSON.stringify(this.LastTappedVideo.originalData), "application/json", function(response) {
-                        if (response) {
-                            Mojo.Controller.getAppController().showBanner({ messageText: "Video shared!" }, "notifications", "");
-                        }
-                    }.bind(this));
-                }
-            },
-            title: "webOS Sharing Service",
-            message: "This will share the selected video with all other MeTube users. Do you want to proceed?",
-            choices: [
-                { label: "Share", value: "yes", type: "affirmative" },
-                { label: "Cancel", value: "no", type: "negative" }
-            ]
-        });
-    }
+    Mojo.Log.info("pop-up command was: " + command);
 }
 
 //Handle mojo button taps
@@ -604,27 +569,9 @@ MainAssistant.prototype.searchYouTube = function(videoRequest) {
 }
 
 MainAssistant.prototype.getMeTubeUserRecommendations = function() {
-    Mojo.Log.info("Getting MeTube User Recommendations from Sharing Service...");
-    $("spnResultsTitle").innerHTML = "Shared by webOS Users";
-    shareServiceModel.DoShareListRequest(function(response) {
-        Mojo.Log.info(response);
-        try {
-            var responseObj = JSON.parse(response);
-            if (responseObj.shares) {
-                var sharedItems = [];
-                for (var i = 0; i < responseObj.shares.length; i++) {
-                    Mojo.Log.info("shared item: " + JSON.stringify(responseObj.shares[i]));
-                    if (responseObj.shares[i].content)
-                        sharedItems.push(responseObj.shares[i].content)
-                }
-                this.updateSearchResultsList(sharedItems);
-            } else {
-                throw ("No items shared");
-            }
-        } catch (ex) {
-            Mojo.Log.warn("Shared recommendation list was empty or could not be loaded: " + ex);
-        }
-    }.bind(this));
+    Mojo.Log.info("Loading default search for palm webos...");
+    $("spnResultsTitle").innerHTML = "Results";
+    this.searchYouTube("palm webos");
 }
 
 //Update the UI with search results from Search Request
@@ -640,7 +587,7 @@ MainAssistant.prototype.updateSearchResultsList = function(results) {
             selectedState: false,
             originalData: results[i]
         }
-        if (!newItem.youtubeId) //Popular list results have a slightly different structure for no apparent reason
+        if (!newItem.youtubeId)
             newItem.youtubeId = results[i].id;
         if (this.DeviceType == "TouchPad") {
             newItem.detailClass = "touchpad";

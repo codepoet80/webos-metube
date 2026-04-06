@@ -12,7 +12,6 @@ function AppAssistant() {
     updaterModel = new UpdaterModel();
     systemModel = new SystemModel();
     metubeModel = new MetubeModel();
-    shareServiceModel = new ShareServiceModel();
     Mojo.Additions = Additions;
 }
 
