@@ -1303,6 +1303,8 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
     this.LastTappedVideo.videoName = this.makeFileNameFromDownloadURL(videoURL);
 
+    this.disableUI("Downloading to device...");
+
     //Ask webOS to download the video from the URL
     this.downloader = this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
         method: 'download',
@@ -1319,6 +1321,20 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
             if (response.completed && (response.completionStatusCode == 200 || response.amountReceived == response.amountTotal)) {
                 $("txtSearch").mojo.focus();
                 this.startVideoPlayer("/media/internal/downloads/.metubevideo.mp4", false);
+            } else if (response.completed) {
+                Mojo.Log.error("Download completed with error status: " + response.completionStatusCode);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Download failed!" }, "", "");
+                if (!this.isInBackground) {
+                    Mojo.Additions.ShowDialogBox("Download Failed", "The video could not be downloaded (status: " + response.completionStatusCode + ").");
+                }
+                this.enableUI();
+            } else if (response.interrupted) {
+                Mojo.Log.error("Download interrupted, status code: " + response.completionStatusCode);
+                Mojo.Controller.getAppController().showBanner({ messageText: "Download interrupted!" }, "", "");
+                if (!this.isInBackground) {
+                    Mojo.Additions.ShowDialogBox("Download Interrupted", "The video download was interrupted by the server. The video may still be too large, or the connection dropped.");
+                }
+                this.enableUI();
             } else {
                 if (this.cancelDownload) {
                     this.controller.serviceRequest('palm://com.palm.downloadmanager/', {
@@ -1329,10 +1345,11 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
                     });
                     this.enableUI();
                 } else {
-                    var status = Math.round((response.amountReceived / response.amountTotal) * 100);
-                    if (status >= 0)
-                        this.disableUI(status + " %");
                     Mojo.Log.info("Download status: " + response.amountReceived + "/" + response.amountTotal);
+                    if (response.amountTotal > 0 && response.amountReceived > 0) {
+                        var status = Math.round((response.amountReceived / response.amountTotal) * 100);
+                        this.disableUI(status + " %");
+                    }
                 }
             }
         }.bind(this),

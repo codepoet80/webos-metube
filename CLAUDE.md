@@ -143,7 +143,7 @@ var appKeys = {
 User preferences stored via `appModel.AppSettingsCurrent`:
 - `HDQuality` - "bestvideo" or "worstvideo"
 - `PlaybackStrategy` - "stream" or "download"
-- `TimeoutMax` - Max polling attempts before timeout
+- `TimeoutMax` - No longer used, still present for backward compatibility
 - `UseCustomEndpoint` / `EndpointURL` - Custom server
 - `VideoHistory` - Array of recently requested videos (max 10)
 

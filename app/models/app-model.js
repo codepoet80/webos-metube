@@ -28,7 +28,7 @@ var AppModel = function() {
         ServerKey: "",
         EndpointURL: "",
         SearchResultMax: 25,
-        TimeoutMax: 60,
+        TimeoutMax: 60, //no longer used, server communicates better so we don't need a time to give-up
         PlaybackStrategy: "stream",
         HDQuality: "bestvideo",
         HDWarningShown: false,
@@ -56,7 +56,7 @@ AppModel.prototype.SetThemePreference = function(theController) {
 //  SaveSettings: call any time you want to persist an option.
 //  ResetSettings: call if you want to forget stored settings and return to defaults. Your default scene will be popped and re-pushed.
 AppModel.prototype.LoadSettings = function(safe) {
-    this.AppSettingsCurrent = this.AppSettingsDefaults;
+    this.AppSettingsCurrent = JSON.parse(JSON.stringify(this.AppSettingsDefaults));
     var loadSuccess = false;
     var settingsCookie = new Mojo.Model.Cookie("settings");
     try {
@@ -83,7 +83,7 @@ AppModel.prototype.loadCookieIntoCurrent = function(cookieSettings) {
 AppModel.prototype.checkSettingsValid = function(loadedSettings) {
     var retValue = true;
     for (var key in this.AppSettingsDefaults) {
-        if (typeof loadedSettings[key] === undefined || loadedSettings[key] == null) {
+        if (typeof loadedSettings[key] === "undefined" || loadedSettings[key] == null) {
             Mojo.Log.warn("** An expected saved setting, " + key + ", was null or undefined.");
             retValue = false;
         }
@@ -116,7 +116,7 @@ AppModel.prototype.SaveSettings = function() {
 AppModel.prototype.ResetSettings = function() {
     Mojo.Log.info("resetting settings");
     //Tell main scene to drop settings
-    this.AppSettingsCurrent = this.AppSettingsDefaults;
+    this.AppSettingsCurrent = JSON.parse(JSON.stringify(this.AppSettingsDefaults));
     this.SaveSettings();
     Mojo.Log.info("settings have been reset");
 

@@ -162,7 +162,7 @@ PreferencesAssistant.prototype.setup = function() {
         },
         this.model = {
             value: appModel.AppSettingsCurrent["EndpointURL"],
-            disabled: !appModel.AppSettingsCurrent["EndpointURL"]
+            disabled: !appModel.AppSettingsCurrent["UseCustomEndpoint"]
         }
     );
 
