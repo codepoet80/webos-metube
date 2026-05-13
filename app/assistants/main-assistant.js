@@ -1301,6 +1301,8 @@ MainAssistant.prototype.downloadVideoFile = function(videoURL) {
     this.cancelDownload = false;
 
     videoURL = metubeModel.BuildMeTubePlaybackRequest(videoURL);
+    if (!this.LastTappedVideo)
+        this.LastTappedVideo = {};
     this.LastTappedVideo.videoName = this.makeFileNameFromDownloadURL(videoURL);
 
     this.disableUI("Downloading to device...");

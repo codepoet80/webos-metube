@@ -107,9 +107,7 @@ AppModel.prototype.checkSettingsValid = function(loadedSettings) {
 
 AppModel.prototype.SaveSettings = function() {
     var settingsCookie = new Mojo.Model.Cookie("settings");
-    Mojo.Log.info("Saving settings as: " + JSON.stringify(appModel.AppSettingsCurrent));
-    Mojo.Log.info("Default settings at Save time are: " + JSON.stringify(appModel.AppSettingsDefaults));
-
+    Mojo.Log.info("Saving settings, history entries: " + (appModel.AppSettingsCurrent["VideoHistory"] ? appModel.AppSettingsCurrent["VideoHistory"].length : 0));
     settingsCookie.put(appModel.AppSettingsCurrent);
 }
 

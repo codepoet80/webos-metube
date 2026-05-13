@@ -21,7 +21,7 @@ AppAssistant.prototype.handleLaunch = function(params) {
 
     //load preferences
     appModel.LoadSettings();
-    Mojo.Log.info("settings now: " + JSON.stringify(appModel.AppSettingsCurrent));
+    Mojo.Log.info("settings loaded, history entries: " + (appModel.AppSettingsCurrent["VideoHistory"] ? appModel.AppSettingsCurrent["VideoHistory"].length : 0));
 
     //get the proxy for the stage in the event it already exists (eg: app is currently open)
     var mainStage = this.controller.getStageProxy("");
